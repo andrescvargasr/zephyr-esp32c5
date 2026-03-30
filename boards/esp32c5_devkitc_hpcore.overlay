@@ -28,4 +28,4 @@
 
 &usb_serial {
   status = "okay";
-}
+};
