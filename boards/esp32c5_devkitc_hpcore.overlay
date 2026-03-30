@@ -1,0 +1,27 @@
+/ {
+  aliases {
+		led0 = &led0;
+	};
+
+  leds {
+		compatible = "gpio-leds";
+
+		led0: led_0 {
+			gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+			label = "Green LED 0";
+		};
+  };        
+
+  chosen {
+    zephyr,console = &usb_serial;
+    zephyr,shell-uart = &usb_serial;
+  };
+};
+
+&psram0 {
+  size = < DT_SIZE_M(8) >;
+};
+
+&usb_serial {
+  status = "okay";
+};
