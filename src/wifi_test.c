@@ -35,11 +35,16 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 #include <zephyr/net/wifi_mgmt.h>
 #include <zephyr/net/wifi_credentials.h>
 
+#include "mqtt_client.h"
+
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
+
+/* MQTT publish work item */
+struct k_work_delayable mqtt_publish_work;
 
 static char server_addr[INET_ADDRSTRLEN] = SERVER_ADDR;
 
@@ -69,45 +74,48 @@ static bool aliases_enabled;
  */
 // static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
-static int wifi_autoconnect_from_nvs(void) {
+static int wifi_autoconnect_from_nvs(void)
+{
 	struct net_if *iface = net_if_get_default();
 	int ret;
 
-	if(iface == NULL) {
+	if (iface == NULL)
+	{
 		LOG_ERR("No default network interface");
 		return -ENODEV;
 	}
 
-	if(wifi_credentials_is_empty()) {
+	if (wifi_credentials_is_empty())
+	{
 		LOG_WRN("No Wi-Fi credentials save in NVS");
 		return -ENOENT;
 	}
 
-	#ifdef CONFIG_WIFI_CREDENTIALS_CONNECT_STORED
-		ret = net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, iface, NULL, 0);
-		if (ret)
-		{
-			LOG_ERR("Auto-connect request failed: %d", ret);
-			return ret;
-		}
+#ifdef CONFIG_WIFI_CREDENTIALS_CONNECT_STORED
+	ret = net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, iface, NULL, 0);
+	if (ret)
+	{
+		LOG_ERR("Auto-connect request failed: %d", ret);
+		return ret;
+	}
 
-		LOG_INF("Auto-connect requested using saved Wi-Fi credentials");
-		return 0;
-	#else
-		LOG_ERR("CONFIG_WIFI_CREDENTIALS_CONNECT_STORED is not enabled");
-		return -ENOTSUP;
-	#endif
-		
+	LOG_INF("Auto-connect requested using saved Wi-Fi credentials");
+	return 0;
+#else
+	LOG_ERR("CONFIG_WIFI_CREDENTIALS_CONNECT_STORED is not enabled");
+	return -ENOTSUP;
+#endif
 }
-
 
 static void prepare_fds(struct mqtt_client *client)
 {
-	if (client->transport.type == MQTT_TRANSPORT_NON_SECURE) {
+	if (client->transport.type == MQTT_TRANSPORT_NON_SECURE)
+	{
 		fds[0].fd = client->transport.tcp.sock;
 	}
 #if defined(CONFIG_MQTT_LIB_TLS)
-	else if (client->transport.type == MQTT_TRANSPORT_SECURE) {
+	else if (client->transport.type == MQTT_TRANSPORT_SECURE)
+	{
 		fds[0].fd = client->transport.tls.sock;
 	}
 #endif
@@ -125,9 +133,11 @@ static int wait(int timeout)
 {
 	int ret = 0;
 
-	if (nfds > 0) {
+	if (nfds > 0)
+	{
 		ret = poll(fds, nfds, timeout);
-		if (ret < 0) {
+		if (ret < 0)
+		{
 			LOG_ERR("poll error: %d", errno);
 		}
 	}
@@ -136,13 +146,15 @@ static int wait(int timeout)
 }
 
 void mqtt_evt_handler(struct mqtt_client *const client,
-		      const struct mqtt_evt *evt)
+					  const struct mqtt_evt *evt)
 {
 	int err;
 
-	switch (evt->type) {
+	switch (evt->type)
+	{
 	case MQTT_EVT_CONNACK:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT connect failed %d", evt->result);
 			break;
 		}
@@ -152,12 +164,15 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 
 #if defined(CONFIG_MQTT_VERSION_5_0)
 		if (evt->param.connack.prop.rx.has_topic_alias_maximum &&
-		    evt->param.connack.prop.topic_alias_maximum > 0) {
+			evt->param.connack.prop.topic_alias_maximum > 0)
+		{
 			LOG_INF("Topic aliases allowed by the broker, max %u.",
-				evt->param.connack.prop.topic_alias_maximum);
+					evt->param.connack.prop.topic_alias_maximum);
 
 			aliases_enabled = true;
-		} else {
+		}
+		else
+		{
 			LOG_INF("Topic aliases disallowed by the broker.");
 		}
 #endif
@@ -181,7 +196,8 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 		break;
 
 	case MQTT_EVT_PUBACK:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBACK error %d", evt->result);
 			break;
 		}
@@ -191,7 +207,8 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 		break;
 
 	case MQTT_EVT_PUBREC:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBREC error %d", evt->result);
 			break;
 		}
@@ -199,24 +216,25 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 		LOG_INF("PUBREC packet id: %u", evt->param.pubrec.message_id);
 
 		const struct mqtt_pubrel_param rel_param = {
-			.message_id = evt->param.pubrec.message_id
-		};
+			.message_id = evt->param.pubrec.message_id};
 
 		err = mqtt_publish_qos2_release(client, &rel_param);
-		if (err != 0) {
+		if (err != 0)
+		{
 			LOG_ERR("Failed to send MQTT PUBREL: %d", err);
 		}
 
 		break;
 
 	case MQTT_EVT_PUBCOMP:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBCOMP error %d", evt->result);
 			break;
 		}
 
 		LOG_INF("PUBCOMP packet id: %u",
-			evt->param.pubcomp.message_id);
+				evt->param.pubcomp.message_id);
 
 		break;
 
@@ -235,7 +253,7 @@ static char *get_mqtt_payload(enum mqtt_qos qos)
 	static char payload[30];
 
 	snprintk(payload, sizeof(payload), "{d:{temperature:%d}}",
-		 sys_rand8_get());
+			 sys_rand8_get());
 #else
 	static char payload[] = "DOORS:OPEN_QoSx";
 
@@ -248,8 +266,8 @@ static char *get_mqtt_payload(enum mqtt_qos qos)
 static char *get_mqtt_topic(void)
 {
 #if APP_BLUEMIX_TOPIC
-	return "iot-2/type/"BLUEMIX_DEVTYPE"/id/"BLUEMIX_DEVID
-	       "/evt/"BLUEMIX_EVENT"/fmt/"BLUEMIX_FORMAT;
+	return "iot-2/type/" BLUEMIX_DEVTYPE "/id/" BLUEMIX_DEVID
+		   "/evt/" BLUEMIX_EVENT "/fmt/" BLUEMIX_FORMAT;
 #else
 	return "sensors";
 #endif
@@ -257,12 +275,13 @@ static char *get_mqtt_topic(void)
 
 static int publish(struct mqtt_client *client, enum mqtt_qos qos)
 {
-	struct mqtt_publish_param param = { 0 };
+	struct mqtt_publish_param param = {0};
 
 	/* Always true for MQTT 3.1.1.
 	 * True only on first publish message for MQTT 5.0 if broker allows aliases.
 	 */
-	if (include_topic) {
+	if (include_topic)
+	{
 		param.message.topic.topic.utf8 = (uint8_t *)get_mqtt_topic();
 		param.message.topic.topic.size =
 			strlen(param.message.topic.topic.utf8);
@@ -271,13 +290,14 @@ static int publish(struct mqtt_client *client, enum mqtt_qos qos)
 	param.message.topic.qos = qos;
 	param.message.payload.data = get_mqtt_payload(qos);
 	param.message.payload.len =
-			strlen(param.message.payload.data);
+		strlen(param.message.payload.data);
 	param.message_id = sys_rand16_get();
 	param.dup_flag = 0U;
 	param.retain_flag = 0U;
 
 #if defined(CONFIG_MQTT_VERSION_5_0)
-	if (aliases_enabled) {
+	if (aliases_enabled)
+	{
 		param.prop.topic_alias = APP_TOPIC_ALIAS;
 		include_topic = false;
 	}
@@ -382,15 +402,13 @@ static void client_init(struct mqtt_client *client)
 	client->transport.websocket.config.url = "/mqtt";
 	client->transport.websocket.config.tmp_buf = temp_ws_rx_buf;
 	client->transport.websocket.config.tmp_buf_len =
-						sizeof(temp_ws_rx_buf);
+		sizeof(temp_ws_rx_buf);
 	client->transport.websocket.timeout = 5 * MSEC_PER_SEC;
 #endif
 
 #if defined(CONFIG_SOCKS)
 	mqtt_client_set_proxy(client, &socks5_proxy,
-			      socks5_proxy.sa_family == AF_INET ?
-			      sizeof(struct sockaddr_in) :
-			      sizeof(struct sockaddr_in6));
+						  socks5_proxy.sa_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
 #endif
 }
 
@@ -399,12 +417,14 @@ static int try_to_connect(struct mqtt_client *client)
 {
 	int rc, i = 0;
 
-	while (i++ < APP_CONNECT_TRIES && !connected) {
+	while (i++ < APP_CONNECT_TRIES && !connected)
+	{
 
 		client_init(client);
 
 		rc = mqtt_connect(client);
-		if (rc != 0) {
+		if (rc != 0)
+		{
 			PRINT_RESULT("mqtt_connect", rc);
 			k_sleep(K_MSEC(APP_SLEEP_MSECS));
 			continue;
@@ -412,16 +432,19 @@ static int try_to_connect(struct mqtt_client *client)
 
 		prepare_fds(client);
 
-		if (wait(APP_CONNECT_TIMEOUT_MS)) {
+		if (wait(APP_CONNECT_TIMEOUT_MS))
+		{
 			mqtt_input(client);
 		}
 
-		if (!connected) {
+		if (!connected)
+		{
 			mqtt_abort(client);
 		}
 	}
 
-	if (connected) {
+	if (connected)
+	{
 		return 0;
 	}
 
@@ -434,22 +457,29 @@ static int process_mqtt_and_sleep(struct mqtt_client *client, int timeout)
 	int64_t start_time = k_uptime_get();
 	int rc;
 
-	while (remaining > 0 && connected) {
-		if (wait(remaining)) {
+	while (remaining > 0 && connected)
+	{
+		if (wait(remaining))
+		{
 			rc = mqtt_input(client);
-			if (rc != 0) {
+			if (rc != 0)
+			{
 				PRINT_RESULT("mqtt_input", rc);
 				return rc;
 			}
 		}
 
 		rc = mqtt_live(client);
-		if (rc != 0 && rc != -EAGAIN) {
+		if (rc != 0 && rc != -EAGAIN)
+		{
 			PRINT_RESULT("mqtt_live", rc);
 			return rc;
-		} else if (rc == 0) {
+		}
+		else if (rc == 0)
+		{
 			rc = mqtt_input(client);
-			if (rc != 0) {
+			if (rc != 0)
+			{
 				PRINT_RESULT("mqtt_input", rc);
 				return rc;
 			}
@@ -461,8 +491,20 @@ static int process_mqtt_and_sleep(struct mqtt_client *client, int timeout)
 	return 0;
 }
 
-#define SUCCESS_OR_EXIT(rc) { if (rc != 0) { return 1; } }
-#define SUCCESS_OR_BREAK(rc) { if (rc != 0) { break; } }
+#define SUCCESS_OR_EXIT(rc) \
+	{                       \
+		if (rc != 0)        \
+		{                   \
+			return 1;       \
+		}                   \
+	}
+#define SUCCESS_OR_BREAK(rc) \
+	{                        \
+		if (rc != 0)         \
+		{                    \
+			break;           \
+		}                    \
+	}
 
 static int publisher(void)
 {
@@ -477,7 +519,8 @@ static int publisher(void)
 	SUCCESS_OR_EXIT(rc);
 
 	i = 450;
-	while (i++ < CONFIG_NET_SAMPLE_APP_MAX_ITERATIONS && connected) {
+	while (i++ < CONFIG_NET_SAMPLE_APP_MAX_ITERATIONS && connected)
+	{
 		r = -1;
 
 		rc = mqtt_ping(&client_ctx);
@@ -524,16 +567,43 @@ static int start_app(void)
 	int r = 0, i = 0;
 
 	while (!CONFIG_NET_SAMPLE_APP_MAX_CONNECTIONS ||
-	       i++ < CONFIG_NET_SAMPLE_APP_MAX_CONNECTIONS) {
-			LOG_INF("Publishing...");
+		   i++ < CONFIG_NET_SAMPLE_APP_MAX_CONNECTIONS)
+	{
+		LOG_INF("Publishing...");
 		r = publisher();
 
-		if (!CONFIG_NET_SAMPLE_APP_MAX_CONNECTIONS) {
+		if (!CONFIG_NET_SAMPLE_APP_MAX_CONNECTIONS)
+		{
 			k_sleep(K_MSEC(20000));
 		}
 	}
 
 	return r;
+}
+
+/** The system work queue is used to handle periodic MQTT publishing.
+ *  Work queuing begins when the MQTT connection is established.
+ *  Use CONFIG_NET_SAMPLE_MQTT_PUBLISH_INTERVAL to set the publish frequency.
+ */
+
+static void publish_work_handler(struct k_work *work)
+{
+	int rc;
+
+	if (mqtt_connected)
+	{
+		rc = app_mqtt_publish(&client_ctx);
+		if (rc != 0)
+		{
+			LOG_INF("MQTT Publish failed [%d]", rc);
+		}
+		k_work_reschedule(&mqtt_publish_work,
+						  K_SECONDS(CONFIG_NET_SAMPLE_MQTT_PUBLISH_INTERVAL));
+	}
+	else
+	{
+		k_work_cancel_delayable(&mqtt_publish_work);
+	}
 }
 
 int main(void)
@@ -572,73 +642,67 @@ int main(void)
 	{
 		LOG_WRN("Wi-Fi autoconnect skipped (%d)", ret);
 	}
-	
+
 	wait_for_network();
 
+	struct net_if *iface = net_if_get_default();
+	if (!iface)
 	{
-		struct net_if *iface = net_if_get_default();
-		if (!iface)
+		LOG_INF("No default network interface");
+	}
+	else
+	{
+		struct net_if_ipv4 *ipv4 = iface->config.ip.ipv4;
+		char buf[NET_IPV6_ADDR_LEN];
+
+		struct in_addr *addr = &ipv4->unicast[0].ipv4.address.net_in_addr;
+		// Conversión segura a string
+		// sys_le32_to_cpu((net_in_addr)addr.s_addr); // Opcional si ya es host-endian
+		net_addr_ntop(AF_INET, &(addr->s_addr), buf, sizeof(buf));
+
+		// Impresión del resultado
+		LOG_INF("Dirección IP: %s", buf);
+
+		if (strcmp(server_addr, NO_SERVER_ADDR) == 0)
 		{
-			LOG_INF("No default network interface");
+			LOG_WRN("SERVER_ADDR is empty, assigning new value");
+			char new_server_addr[INET_ADDRSTRLEN] = DEFAULT_SERVER_ADDR;
+			strncpy(server_addr, new_server_addr, sizeof(new_server_addr));
+			LOG_INF("Broker address: %s", server_addr);
 		}
 		else
 		{
-			struct net_if_ipv4 *ipv4 = iface->config.ip.ipv4;
-			char buf[NET_IPV6_ADDR_LEN];
+			LOG_INF("Broker address: %s", server_addr);
+		}
 
-			struct in_addr *addr = &ipv4->unicast[0].ipv4.address.net_in_addr;
-			// Conversión segura a string
-			// sys_le32_to_cpu((net_in_addr)addr.s_addr); // Opcional si ya es host-endian
-			net_addr_ntop(AF_INET, &(addr->s_addr), buf, sizeof(buf));
+		int rc = app_mqtt_init(&client_ctx, server_addr);
+		if (rc != 0)
+		{
+			LOG_ERR("MQTT Init failed [%d]", rc);
+			return rc;
+		}
 
-			// Impresión del resultado
-			LOG_INF("Dirección IP: %s", buf);
-			
-			if(strcmp(server_addr, NO_SERVER_ADDR) == 0) {
-				LOG_WRN("SERVER_ADDR is empty, assigning new value");
-				char new_server_addr[INET_ADDRSTRLEN] = DEFAULT_SERVER_ADDR;
-				strncpy(server_addr, new_server_addr, sizeof(new_server_addr));
-				LOG_INF("Broker address: %s", server_addr);
-			} else {
-				LOG_INF("Broker address: %s", server_addr);
-			}
+		/* Initialise MQTT publish work item */
+		k_work_init_delayable(&mqtt_publish_work, publish_work_handler);
 
-			// struct net_if_ipv4 *ipv4_cfg;
+		/* Thread main loop */
+		while (1)
+		{
+			/* Block until MQTT connection is up */
+			app_mqtt_connect(&client_ctx);
 
-			// struct net_if_addr *ipv4 = net_if_ipv4_addr_get(iface, NET_ADDR_DHCP);
-			// int ipv4_res = net_if_config_ipv4_get(iface, &ipv4_cfg);
-			// if (!ipv4_res)
-			// {
-			// 	ipv4 = net_if_ipv4_addr_get(iface, NET_ADDR_MANUAL);
-			// }
-			// if (ipv4_res)
-			// {
-			// 	net_addr_ntop(AF_INET, &ipv4->address.in_addr, buf, sizeof(buf));
-			// 	LOG_INF("IPv4: %s", buf);
-			// }
-			// else
-			// {
-			// 	LOG_INF("IPv4 address not found");
-			// }
+			/* We are now connected, begin queueing periodic MQTT publishes */
+			k_work_reschedule(&mqtt_publish_work,
+							  K_SECONDS(CONFIG_NET_SAMPLE_MQTT_PUBLISH_INTERVAL));
 
-			/*
-struct net_if_addr *ipv6 = net_if_ipv6_addr_get(iface, NET_ADDR_DHCP);
-if (!ipv6) {
-	ipv6 = net_if_ipv6_addr_get(iface, NET_ADDR_MANUAL);
-}
-if (ipv6) {
-	net_addr_ntop(AF_INET6, &ipv6->address.in6_addr, buf, sizeof(buf));
-	LOG_INF("IPv6: %s", log_strdup(buf));
-} else {
-	LOG_INF("IPv6 address not found");
-}
-*/
+			/* Handle MQTT inputs and connection */
+			app_mqtt_run(&client_ctx);
 		}
 	}
 
 	LOG_INF("Connected to Wi-Fi");
 
-	exit(start_app());
+	// exit(start_app());
 
 	return 0;
 }
