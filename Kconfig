@@ -5,6 +5,12 @@
 
 mainmenu "Networking mqtt_publisher sample application"
 
+config XIAO_ESP32C5_LED
+	bool "Use on-board LED for indication"
+	default n
+	help
+	  If enabled, the application will use the on-board LED to indicate.
+
 config NET_SAMPLE_APP_MAX_ITERATIONS
 	int "Number of times to Publish sample MQTT messages"
 	default 500
@@ -24,7 +30,7 @@ config NET_SAMPLE_APP_MAX_CONNECTIONS
 # From secure MQTT sample application
 config NET_SAMPLE_MQTT_BROKER_HOSTNAME
 	string "Hostname of MQTT broker"
-	default "192.168.1.146"
+	default "192.168.1.148"
 	# default "test.mosquitto.org"
 	help
 	  MQTT broker's hostname or IP address.

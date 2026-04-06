@@ -37,11 +37,19 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 
 #include "mqtt_client.h"
 
+#ifdef CONFIG_XIAO_ESP32C5_LED
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
-
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
+
+/*
+ * A build error on this line means your board is unsupported.
+ * See the sample documentation for information on how to fix this.
+ */
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
+#endif
 
 /* MQTT publish work item */
 struct k_work_delayable mqtt_publish_work;
@@ -67,12 +75,6 @@ static bool include_topic;
 static bool aliases_enabled;
 
 #define APP_TOPIC_ALIAS 1
-
-/*
- * A build error on this line means your board is unsupported.
- * See the sample documentation for information on how to fix this.
- */
-// static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 static int wifi_autoconnect_from_nvs(void)
 {
@@ -608,36 +610,35 @@ static void publish_work_handler(struct k_work *work)
 
 int main(void)
 {
-	// int ret;
-	// bool led_state = false;
+	int ret;
 
-	// if (!gpio_is_ready_dt(&led)) {
-	// 	return 0;
-	// }
+#ifdef CONFIG_XIAO_ESP32C5_LED
+	LOG_INF("Starting Wi-Fi test with LED indication");
+	bool led_state = false;
 
-	// ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-	// if (ret < 0) {
-	// 	return 0;
-	// }
+	if (!gpio_is_ready_dt(&led))
+	{
+		return 0;
+	}
 
-	// ret = gpio_pin_set_dt(&led, led_state);
-	// if (ret < 0) {
-	// 	return 0;
-	// }
+	ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
+	if (ret < 0)
+	{
+		return 0;
+	}
 
-	// printf("LED state: %s\n", led_state ? "ON" : "OFF");
+	ret = gpio_pin_set_dt(&led, led_state);
+	if (ret < 0)
+	{
+		return 0;
+	}
 
-	// while (1) {
-	// 	ret = gpio_pin_toggle_dt(&led);
-	// 	if (ret < 0) {
-	// 		return 0;
-	// 	}
+	LOG_INF("LED state: %s", led_state ? "ON" : "OFF");
+#else
+	LOG_INF("Starting Wi-Fi test without LED indication");
+#endif
 
-	// 	led_state = !led_state;
-	// 	printf("LED state: %s\n", led_state ? "ON" : "OFF");
-	// 	k_msleep(SLEEP_TIME_MS);
-	// }
-	int ret = wifi_autoconnect_from_nvs();
+	ret = wifi_autoconnect_from_nvs();
 	if (ret < 0)
 	{
 		LOG_WRN("Wi-Fi autoconnect skipped (%d)", ret);
@@ -688,6 +689,17 @@ int main(void)
 		/* Thread main loop */
 		while (1)
 		{
+#ifdef CONFIG_XIAO_ESP32C5_LED
+			ret = gpio_pin_toggle_dt(&led);
+			if (ret < 0)
+			{
+				return 0;
+			}
+
+			led_state = !led_state;
+			LOG_INF("LED state: %s", led_state ? "ON" : "OFF");
+#endif
+
 			/* Block until MQTT connection is up */
 			app_mqtt_connect(&client_ctx);
 
@@ -697,6 +709,7 @@ int main(void)
 
 			/* Handle MQTT inputs and connection */
 			app_mqtt_run(&client_ctx);
+			k_msleep(SLEEP_TIME_MS);
 		}
 	}
 
