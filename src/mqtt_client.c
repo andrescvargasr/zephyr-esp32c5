@@ -34,7 +34,8 @@ static struct pollfd fds[1];
 static int nfds;
 
 /** @brief Sensor sample structure */
-struct sensor_sample {
+struct sensor_sample
+{
 	const char *unit;
 	int value;
 };
@@ -51,23 +52,48 @@ bool mqtt_connected;
 /* MQTT client ID buffer */
 static uint8_t client_id[50];
 
-
 /** Retrieves a sensor sample and encodes it in JSON format */
 static int get_mqtt_payload(struct mqtt_binstr *payload)
 {
 	int rc;
-	struct sensor_sample sample;
+	struct sensor_sample sample = {
+		.unit = "C",
+		.value = sys_rand32_get() % 100};
 
 	rc = 0;
 	// rc = device_read_sensor(&sample);
-	if (rc != 0) {
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get sensor sample [%d]", rc);
+		return rc;
+	}
+
+	rc = json_obj_encode_buf(sensor_sample_descr, ARRAY_SIZE(sensor_sample_descr),
+							 &sample, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to encode JSON object [%d]", rc);
+		return rc;
+	}
+
+	payload->data = payload_buf;
+	payload->len = strlen(payload->data);
+
+	return rc;
+}
+
+	rc = 0;
+	// rc = device_read_sensor(&sample);
+	if (rc != 0)
+	{
 		LOG_ERR("Failed to get sensor sample [%d]", rc);
 		return rc;
 	}
 
 	rc = json_obj_encode_buf(sensor_sample_descr, ARRAY_SIZE(sensor_sample_descr),
 					&sample, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
-	if (rc != 0) {
+	if (rc != 0)
+	{
 		LOG_ERR("Failed to encode JSON object [%d]", rc);
 		return rc;
 	}
@@ -111,15 +137,13 @@ int app_mqtt_publish(struct mqtt_client *client)
 	static uint16_t msg_id = 1;
 	struct mqtt_topic topic = {
 		.topic = {
-			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC,
-			.size = strlen(topic.topic.utf8)
-		},
-		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 :
-			(IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)
-	};
+			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER,
+			.size = strlen(topic.topic.utf8)},
+		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
 
 	rc = get_mqtt_payload(&payload);
-	if (rc != 0) {
+	if (rc != 0)
+	{
 		LOG_ERR("Failed to get MQTT payload [%d]", rc);
 	}
 
@@ -130,7 +154,8 @@ int app_mqtt_publish(struct mqtt_client *client)
 	param.retain_flag = 0;
 
 	rc = mqtt_publish(client, &param);
-	if (rc != 0) {
+	if (rc != 0)
+	{
 		LOG_ERR("MQTT Publish failed [%d]", rc);
 	}
 
@@ -145,7 +170,7 @@ int app_mqtt_publish(struct mqtt_client *client)
 /** Initialise the MQTT client ID as the board name with random hex postfix */
 static void init_mqtt_client_id(void)
 {
-	snprintk(client_id, sizeof(client_id), CONFIG_BOARD"_%x", (uint8_t)sys_rand32_get());
+	snprintk(client_id, sizeof(client_id), SERIAL_NUMBER "_%x", (uint8_t)sys_rand32_get());
 }
 
 
@@ -161,7 +186,8 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 
 	rc = mqtt_read_publish_payload(client, payload,
 					CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
-	if (rc < 0) {
+	if (rc < 0)
+	{
 		LOG_ERR("Failed to read received MQTT payload [%d]", rc);
 		return;
 	}
@@ -174,7 +200,8 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 
 	/* If the topic is a command, call the command handler  */
 	if (strcmp(evt->param.publish.message.topic.topic.utf8,
-			CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD) == 0) {
+			   CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD) == 0)
+	{
 		LOG_INF("Update device from MQTT command");
 		// device_command_handler(payload);
 	}
@@ -183,10 +210,12 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 /** Handler for asynchronous MQTT events */
 static void mqtt_event_handler(struct mqtt_client *const client, const struct mqtt_evt *evt)
 {
-	switch (evt->type) {
+	switch (evt->type)
+	{
 	case MQTT_EVT_CONNACK:
 		LOG_INF("MQTT_EVT_CONNACK");
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT Event Connect failed [%d]", evt->result);
 			break;
 		}
@@ -203,7 +232,8 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 		break;
 
 	case MQTT_EVT_PUBACK:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBACK error [%d]", evt->result);
 			break;
 		}
@@ -212,7 +242,8 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 		break;
 
 	case MQTT_EVT_PUBREC:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBREC error [%d]", evt->result);
 			break;
 		}
@@ -220,14 +251,14 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 		LOG_INF("PUBREC packet ID: %u", evt->param.pubrec.message_id);
 
 		const struct mqtt_pubrel_param rel_param = {
-			.message_id = evt->param.pubrec.message_id
-		};
+			.message_id = evt->param.pubrec.message_id};
 
 		mqtt_publish_qos2_release(client, &rel_param);
 		break;
 
 	case MQTT_EVT_PUBREL:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBREL error [%d]", evt->result);
 			break;
 		}
@@ -235,14 +266,14 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 		LOG_INF("PUBREL packet ID: %u", evt->param.pubrel.message_id);
 
 		const struct mqtt_pubcomp_param rec_param = {
-			.message_id = evt->param.pubrel.message_id
-		};
+			.message_id = evt->param.pubrel.message_id};
 
 		mqtt_publish_qos2_complete(client, &rec_param);
 		break;
 
 	case MQTT_EVT_PUBCOMP:
-		if (evt->result != 0) {
+		if (evt->result != 0)
+		{
 			LOG_ERR("MQTT PUBCOMP error %d", evt->result);
 			break;
 		}
@@ -251,7 +282,8 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 		break;
 
 	case MQTT_EVT_SUBACK:
-		if (evt->result == MQTT_SUBACK_FAILURE) {
+		if (evt->result == MQTT_SUBACK_FAILURE)
+		{
 			LOG_ERR("MQTT SUBACK error [%d]", evt->result);
 			break;
 		}
@@ -263,15 +295,16 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 		LOG_INF("MQTT_EVT_PUBLISH");
 		const struct mqtt_publish_param *p = &evt->param.publish;
 
-		if (p->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE) {
+		if (p->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE)
+		{
 			const struct mqtt_puback_param ack_param = {
-				.message_id = p->message_id
-			};
+				.message_id = p->message_id};
 			mqtt_publish_qos1_ack(client, &ack_param);
-		} else if (p->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE) {
+		}
+		else if (p->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE)
+		{
 			const struct mqtt_pubrec_param rec_param = {
-				.message_id = p->message_id
-			};
+				.message_id = p->message_id};
 			mqtt_publish_qos2_receive(client, &rec_param);
 		}
 
@@ -284,11 +317,13 @@ static void mqtt_event_handler(struct mqtt_client *const client, const struct mq
 
 static void prepare_fds(struct mqtt_client *client)
 {
-	if (client->transport.type == MQTT_TRANSPORT_NON_SECURE) {
+	if (client->transport.type == MQTT_TRANSPORT_NON_SECURE)
+	{
 		fds[0].fd = client->transport.tcp.sock;
 	}
 #if defined(CONFIG_MQTT_LIB_TLS)
-	else if (client->transport.type == MQTT_TRANSPORT_SECURE) {
+	else if (client->transport.type == MQTT_TRANSPORT_SECURE)
+	{
 		fds[0].fd = client->transport.tls.sock;
 	}
 #endif
@@ -304,48 +339,43 @@ static int poll_mqtt_socket(struct mqtt_client *client, int timeout)
 
 	prepare_fds(client);
 
-	if (nfds <= 0) {
+	if (nfds <= 0)
+	{
 		return -EINVAL;
 	}
 
 	rc = poll(fds, nfds, timeout);
-	if (rc < 0) {
+	if (rc < 0)
+	{
 		LOG_ERR("Socket poll error [%d]", rc);
 	}
 
 	return rc;
 }
 
-
 int app_mqtt_subscribe(struct mqtt_client *client)
 {
 	int rc;
 	struct mqtt_topic sub_topics[] = {
-		{
-			.topic = {
+		{.topic = {
 				.utf8 = CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD,
-				.size = strlen(sub_topics->topic.utf8)
-			},
-			.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 :
-				(IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)
-		}
-	};
+			 .size = strlen(sub_topics->topic.utf8)},
+		 .qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)}};
 	const struct mqtt_subscription_list sub_list = {
 		.list = sub_topics,
 		.list_count = ARRAY_SIZE(sub_topics),
-		.message_id = 5841u
-	};
+		.message_id = 5841u};
 
 	LOG_INF("Subscribing to %d topic(s)", sub_list.list_count);
 
 	rc = mqtt_subscribe(client, &sub_list);
-	if (rc != 0) {
+	if (rc != 0)
+	{
 		LOG_ERR("MQTT Subscribe failed [%d]", rc);
 	}
 
 	return rc;
 }
-
 
 /** Process incoming MQTT data and keep the connection alive*/
 int app_mqtt_process(struct mqtt_client *client)
@@ -353,24 +383,31 @@ int app_mqtt_process(struct mqtt_client *client)
 	int rc;
 
 	rc = poll_mqtt_socket(client, mqtt_keepalive_time_left(client));
-	if (rc != 0) {
-		if (fds[0].revents & POLLIN) {
+	if (rc != 0)
+	{
+		if (fds[0].revents & POLLIN)
+		{
 			/* MQTT data received */
 			rc = mqtt_input(client);
-			if (rc != 0) {
+			if (rc != 0)
+			{
 				LOG_ERR("MQTT Input failed [%d]", rc);
 				return rc;
 			}
 			/* Socket error */
-			if (fds[0].revents & (POLLHUP | POLLERR)) {
+			if (fds[0].revents & (POLLHUP | POLLERR))
+			{
 				LOG_ERR("MQTT socket closed / error");
 				return -ENOTCONN;
 			}
 		}
-	} else {
+	}
+	else
+	{
 		/* Socket poll timed out, time to call mqtt_live() */
 		rc = mqtt_live(client);
-		if (rc != 0) {
+		if (rc != 0)
+		{
 			LOG_ERR("MQTT Live failed [%d]", rc);
 			return rc;
 		}
@@ -378,7 +415,6 @@ int app_mqtt_process(struct mqtt_client *client)
 
 	return 0;
 }
-
 
 void app_mqtt_run(struct mqtt_client *client)
 {
@@ -388,16 +424,17 @@ void app_mqtt_run(struct mqtt_client *client)
 	app_mqtt_subscribe(client);
 
 	/* Thread will primarily remain in this loop */
-	while (mqtt_connected) {
+	while (mqtt_connected)
+	{
 		rc = app_mqtt_process(client);
-		if (rc != 0) {
+		if (rc != 0)
+		{
 			break;
 		}
 	}
 	/* Gracefully close connection */
 	mqtt_disconnect(client, NULL);
 }
-
 
 void app_mqtt_connect(struct mqtt_client *client)
 {
@@ -406,9 +443,11 @@ void app_mqtt_connect(struct mqtt_client *client)
 	mqtt_connected = false;
 
 	/* Block until MQTT CONNACK event callback occurs */
-	while (!mqtt_connected) {
+	while (!mqtt_connected)
+	{
 		rc = mqtt_connect(client);
-		if (rc != 0) {
+		if (rc != 0)
+		{
 			LOG_ERR("MQTT Connect failed [%d]", rc);
 			k_msleep(MSECS_WAIT_RECONNECT);
 			continue;
@@ -416,11 +455,13 @@ void app_mqtt_connect(struct mqtt_client *client)
 
 		/* Poll MQTT socket for response */
 		rc = poll_mqtt_socket(client, MSECS_NET_POLL_TIMEOUT);
-		if (rc > 0) {
+		if (rc > 0)
+		{
 			mqtt_input(client);
 		}
 
-		if (!mqtt_connected) {
+		if (!mqtt_connected)
+		{
 			mqtt_abort(client);
 		}
 	}
@@ -434,8 +475,7 @@ int app_mqtt_init(struct mqtt_client *client, char *server_addr)
 	// struct addrinfo *result;
 	const struct addrinfo hints = {
 		.ai_family = AF_INET,
-		.ai_socktype = SOCK_STREAM
-	};
+		.ai_socktype = SOCK_STREAM};
 
 	/* Resolve IP address of MQTT broker */
 	// rc = getaddrinfo(CONFIG_NET_SAMPLE_MQTT_BROKER_HOSTNAME,
@@ -486,7 +526,8 @@ int app_mqtt_init(struct mqtt_client *client, char *server_addr)
 	client->transport.type = MQTT_TRANSPORT_SECURE;
 
 	rc = tls_init();
-	if (rc != 0) {
+	if (rc != 0)
+	{
 		LOG_ERR("TLS init error");
 		return rc;
 	}
