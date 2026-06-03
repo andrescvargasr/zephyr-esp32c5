@@ -37,7 +37,7 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 
 #include "mqtt_client.h"
 
-#ifdef CONFIG_XIAO_ESP32C5_LED
+#ifdef CONFIG_BOARD_XIAO_ESP32C5
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
 /* The devicetree node identifier for the "led0" alias. */
@@ -271,7 +271,7 @@ static char *get_mqtt_topic(void)
 	return "iot-2/type/" BLUEMIX_DEVTYPE "/id/" BLUEMIX_DEVID
 		   "/evt/" BLUEMIX_EVENT "/fmt/" BLUEMIX_FORMAT;
 #else
-	return "sensors";
+	return SERIAL_NUMBER;
 #endif
 }
 
@@ -612,7 +612,7 @@ int main(void)
 {
 	int ret;
 
-#ifdef CONFIG_XIAO_ESP32C5_LED
+#ifdef CONFIG_BOARD_XIAO_ESP32C5
 	LOG_INF("Starting Wi-Fi test with LED indication");
 	bool led_state = false;
 
@@ -689,7 +689,8 @@ int main(void)
 		/* Thread main loop */
 		while (1)
 		{
-#ifdef CONFIG_XIAO_ESP32C5_LED
+
+#ifdef CONFIG_BOARD_XIAO_ESP32C5
 			ret = gpio_pin_toggle_dt(&led);
 			if (ret < 0)
 			{
