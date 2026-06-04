@@ -42,10 +42,37 @@ struct sensor_sample
 	int value;
 };
 
+struct info_status
+{
+	const char *status;
+};
+
+struct info_mode
+{
+	char *mode;
+};
+
+struct info_targets
+{
+	char *targets;
+};
+
 /* JSON payload format */
 static const struct json_obj_descr sensor_sample_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct sensor_sample, unit, JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct sensor_sample, value, JSON_TOK_NUMBER),
+};
+
+static const struct json_obj_descr info_status_descr[] = {
+	JSON_OBJ_DESCR_PRIM(struct info_status, status, JSON_TOK_STRING),
+};
+
+static const struct json_obj_descr info_mode_descr[] = {
+	JSON_OBJ_DESCR_PRIM(struct info_mode, mode, JSON_TOK_STRING),
+};
+
+static const struct json_obj_descr info_targets_descr[] = {
+	JSON_OBJ_DESCR_PRIM(struct info_targets, targets, JSON_TOK_STRING),
 };
 
 /* MQTT connectivity status flag */
@@ -53,6 +80,26 @@ bool mqtt_connected;
 
 /* MQTT client ID buffer */
 static uint8_t client_id[50];
+
+/* MQTT Last Will typedef struct */
+typedef struct
+{
+	struct mqtt_topic topic;  /**< Last will topic with QoS. */
+	struct mqtt_utf8 message; /**< Last will message payload. */
+	bool retain;			  /**< Retain flag for last will message. */
+} mqtt_will_t;
+
+/* MQTT Last Will configuration */
+static const char will_topic[] = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/info/status";
+static const char will_message[] = "disconnected";
+static mqtt_will_t will_param = {
+	.topic = {
+		.topic = MQTT_UTF8_LITERAL(CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/info/status"),
+		.qos = 1,
+	},
+	.message = MQTT_UTF8_LITERAL("disconnected"),
+	.retain = true,
+};
 
 /** Retrieves a sensor sample and encodes it in JSON format */
 static int get_mqtt_payload(struct mqtt_binstr *payload)
@@ -84,16 +131,108 @@ static int get_mqtt_payload(struct mqtt_binstr *payload)
 	return rc;
 }
 
+/** Retrieves a sensor sample and encodes it in JSON format */
+static int get_mqtt_payload_status(struct mqtt_binstr *payload)
+{
+	int rc;
+	struct info_status status = {
+		.status = INFO_STATUS_CONNECTED};
+
 	rc = 0;
-	// rc = device_read_sensor(&sample);
 	if (rc != 0)
 	{
 		LOG_ERR("Failed to get sensor sample [%d]", rc);
 		return rc;
 	}
 
-	rc = json_obj_encode_buf(sensor_sample_descr, ARRAY_SIZE(sensor_sample_descr),
-					&sample, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+	rc = json_obj_encode_buf(info_status_descr, ARRAY_SIZE(info_status_descr),
+							 &status, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to encode JSON object [%d]", rc);
+		return rc;
+	}
+
+	payload->data = payload_buf;
+	payload->len = strlen(payload->data);
+
+	return rc;
+}
+
+/** Retrieves a sensor sample and encodes it in JSON format */
+static int get_mqtt_payload_mode(struct mqtt_binstr *payload)
+{
+	int rc;
+	struct info_mode mode = {
+		.mode = INFO_MODE_CONTROLLER};
+
+	rc = 0;
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get sensor sample [%d]", rc);
+		return rc;
+	}
+
+	rc = json_obj_encode_buf(info_mode_descr, ARRAY_SIZE(info_mode_descr),
+							 &mode, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to encode JSON object [%d]", rc);
+		return rc;
+	}
+
+	payload->data = payload_buf;
+	payload->len = strlen(payload->data);
+
+	return rc;
+}
+
+/** Retrieves a targets and encodes it in JSON format */
+static int get_mqtt_payload_targets(struct mqtt_binstr *payload)
+{
+	int rc;
+	struct info_targets targets =
+	{
+		.targets = "[" SERIAL_NUMBER "," SERIAL_NUMBER "]"};
+
+		rc = 0;
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get sensor sample [%d]", rc);
+		return rc;
+	}
+
+	rc = json_obj_encode_buf(info_targets_descr, ARRAY_SIZE(info_targets_descr),
+							 &targets, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to encode JSON object [%d]", rc);
+		return rc;
+	}
+
+	payload->data = payload_buf;
+	payload->len = strlen(payload->data);
+
+	return rc;
+}
+
+/** Retrieves a targets and encodes it in JSON format */
+static int get_mqtt_payload_descriptor(struct mqtt_binstr *payload)
+{
+	int rc;
+	struct info_targets targets =
+	{
+		.targets = "[" SERIAL_NUMBER "," SERIAL_NUMBER "]"};
+
+		rc = 0;
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get sensor sample [%d]", rc);
+		return rc;
+	}
+
+	rc = json_obj_encode_buf(info_targets_descr, ARRAY_SIZE(info_targets_descr),
+							 &targets, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
 	if (rc != 0)
 	{
 		LOG_ERR("Failed to encode JSON object [%d]", rc);
@@ -128,7 +267,7 @@ static inline void on_mqtt_connect(void)
 	LOG_INF("Client ID: %s", client_id);
 	LOG_INF("Port: %s", CONFIG_NET_SAMPLE_MQTT_BROKER_PORT);
 	LOG_INF("TLS: %s",
-		IS_ENABLED(CONFIG_MQTT_LIB_TLS) ? "Enabled" : "Disabled");
+			IS_ENABLED(CONFIG_MQTT_LIB_TLS) ? "Enabled" : "Disabled");
 }
 
 int app_mqtt_publish(struct mqtt_client *client)
@@ -168,13 +307,122 @@ int app_mqtt_publish(struct mqtt_client *client)
 	return rc;
 }
 
+int app_mqtt_publish_status(struct mqtt_client *client)
+{
+	int rc;
+	struct mqtt_publish_param param;
+	struct mqtt_binstr payload;
+	static uint16_t msg_id = 1;
+	struct mqtt_topic topic = {
+		.topic = {
+			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/info/status",
+			.size = strlen(topic.topic.utf8)},
+		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
+
+	rc = get_mqtt_payload_status(&payload);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get MQTT payload [%d]", rc);
+	}
+
+	param.message.topic = topic;
+	param.message.payload = payload;
+	param.message_id = msg_id++;
+	param.dup_flag = 0;
+	param.retain_flag = 0;
+
+	rc = mqtt_publish(client, &param);
+	if (rc != 0)
+	{
+		LOG_ERR("MQTT Publish failed [%d]", rc);
+	}
+
+	LOG_INF("Published to topic '%s', QoS %d",
+			param.message.topic.topic.utf8,
+			param.message.topic.qos);
+
+	return rc;
+}
+
+int app_mqtt_publish_mode(struct mqtt_client *client)
+{
+	int rc;
+	struct mqtt_publish_param param;
+	struct mqtt_binstr payload;
+	static uint16_t msg_id = 1;
+	struct mqtt_topic topic = {
+		.topic = {
+			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/info/mode",
+			.size = strlen(topic.topic.utf8)},
+		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
+
+	rc = get_mqtt_payload_mode(&payload);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get MQTT payload [%d]", rc);
+	}
+
+	param.message.topic = topic;
+	param.message.payload = payload;
+	param.message_id = msg_id++;
+	param.dup_flag = 0;
+	param.retain_flag = 0;
+
+	rc = mqtt_publish(client, &param);
+	if (rc != 0)
+	{
+		LOG_ERR("MQTT Publish failed [%d]", rc);
+	}
+
+	LOG_INF("Published to topic '%s', QoS %d",
+			param.message.topic.topic.utf8,
+			param.message.topic.qos);
+
+	return rc;
+}
+
+int app_mqtt_publish_targets(struct mqtt_client *client)
+{
+	int rc;
+	struct mqtt_publish_param param;
+	struct mqtt_binstr payload;
+	static uint16_t msg_id = 1;
+	struct mqtt_topic topic = {
+		.topic = {
+			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/info/targets",
+			.size = strlen(topic.topic.utf8)},
+		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
+
+	rc = get_mqtt_payload_targets(&payload);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get MQTT payload [%d]", rc);
+	}
+
+	param.message.topic = topic;
+	param.message.payload = payload;
+	param.message_id = msg_id++;
+	param.dup_flag = 0;
+	param.retain_flag = 0;
+
+	rc = mqtt_publish(client, &param);
+	if (rc != 0)
+	{
+		LOG_ERR("MQTT Publish failed [%d]", rc);
+	}
+
+	LOG_INF("Published to topic '%s', QoS %d",
+			param.message.topic.topic.utf8,
+			param.message.topic.qos);
+
+	return rc;
+}
 
 /** Initialise the MQTT client ID as the board name with random hex postfix */
 static void init_mqtt_client_id(void)
 {
 	snprintk(client_id, sizeof(client_id), SERIAL_NUMBER "_%x", (uint8_t)sys_rand32_get());
 }
-
 
 /** Called when an MQTT payload is received.
  *  Reads the payload and calls the commands
@@ -187,7 +435,7 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 	uint8_t payload[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 
 	rc = mqtt_read_publish_payload(client, payload,
-					CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+								   CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
 	if (rc < 0)
 	{
 		LOG_ERR("Failed to read received MQTT payload [%d]", rc);
@@ -198,7 +446,7 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 
 	LOG_INF("MQTT payload received!");
 	LOG_INF("topic: '%s', payload: %s",
-		evt->param.publish.message.topic.topic.utf8, payload);
+			evt->param.publish.message.topic.topic.utf8, payload);
 
 	/* If the topic is a command, call the command handler  */
 	if (strcmp(evt->param.publish.message.topic.topic.utf8,
@@ -360,7 +608,7 @@ int app_mqtt_subscribe(struct mqtt_client *client)
 	int rc;
 	struct mqtt_topic sub_topics[] = {
 		{.topic = {
-				.utf8 = CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD,
+			 .utf8 = CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD,
 			 .size = strlen(sub_topics->topic.utf8)},
 		 .qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)}};
 	const struct mqtt_subscription_list sub_list = {
@@ -501,7 +749,7 @@ int app_mqtt_init(struct mqtt_client *client, char *server_addr)
 	/* Log resolved IP address */
 	inet_ntop(AF_INET, &broker4->sin_addr.s_addr, broker_ip, sizeof(broker_ip));
 	LOG_INF("Connecting to MQTT broker @ %s", broker_ip);
-	
+
 	/* MQTT client configuration */
 	init_mqtt_client_id();
 	LOG_INF("init_mqtt_client_id");
