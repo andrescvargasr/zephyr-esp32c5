@@ -8,8 +8,8 @@
 #define __MQTT_CLIENT_H__
 
 /** MQTT connection timeouts */
-#define MSECS_NET_POLL_TIMEOUT	5000
-#define MSECS_WAIT_RECONNECT	1000
+#define MSECS_NET_POLL_TIMEOUT 5000
+#define MSECS_WAIT_RECONNECT 1000
 
 /** MQTT connection status flag */
 extern bool mqtt_connected;
@@ -39,5 +39,20 @@ int app_mqtt_subscribe(struct mqtt_client *client);
  *  @brief  Publish MQTT payload
  */
 int app_mqtt_publish(struct mqtt_client *client);
+
+/**
+ * @brief  Publish MQTT payload with status topic
+ */
+int app_mqtt_publish_status(struct mqtt_client *client);
+
+/**
+ * @brief  Publish MQTT payload with mode topic
+ */
+int app_mqtt_publish_mode(struct mqtt_client *client);
+
+/**
+ * @brief  Publish MQTT payload with targets topic
+ */
+int app_mqtt_publish_targets(struct mqtt_client *client);
 
 #endif /* __MQTT_CLIENT_H__ */

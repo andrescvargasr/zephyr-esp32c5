@@ -19,6 +19,8 @@ LOG_MODULE_REGISTER(app_mqtt, LOG_LEVEL_DBG);
 #include "mqtt_client.h"
 #include "config.h"
 
+static char device_array[] = DEVICE_DESCRIPTOR_MACRO;
+
 /* Buffers for MQTT client */
 static uint8_t rx_buffer[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 static uint8_t tx_buffer[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
@@ -505,13 +507,32 @@ int app_mqtt_init(struct mqtt_client *client, char *server_addr)
 	LOG_INF("init_mqtt_client_id");
 	mqtt_client_init(client);
 	LOG_INF("mqtt_client_init");
+
+	/* MQTT client configuration */
 	client->broker = &broker;
 	client->evt_cb = mqtt_event_handler;
-	client->client_id.utf8 = client_id;
-	client->client_id.size = strlen(client->client_id.utf8);
+	client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
+	client->client_id.size = strlen(MQTT_CLIENTID);
 	client->password = NULL;
 	client->user_name = NULL;
+
+	LOG_INF("MQTT client initialized with client ID: %s", MQTT_CLIENTID);
+	LOG_INF("MQTT client will topic: %s", will_param.topic.topic.utf8);
+	LOG_INF("MQTT client will message: %s", will_param.message.utf8);
+
+	/* Configure Last Will */
+	client->will_topic = (struct mqtt_topic *)&will_param.topic;
+	client->will_message = (struct mqtt_utf8 *)&will_param.message;
+	// client->will_qos = will_param.topic.qos;
+	client->will_retain = will_param.retain;
+
+	client->keepalive = APP_MQTT_KEEPALIVE;
+
+#if defined(CONFIG_MQTT_VERSION_5_0)
+	client->protocol_version = MQTT_VERSION_5_0;
+#else
 	client->protocol_version = MQTT_VERSION_3_1_1;
+#endif
 
 	/* MQTT buffers configuration */
 	client->rx_buf = rx_buffer;
@@ -521,28 +542,45 @@ int app_mqtt_init(struct mqtt_client *client, char *server_addr)
 
 	/* MQTT transport configuration */
 #if defined(CONFIG_MQTT_LIB_TLS)
-	struct mqtt_sec_config *tls_config;
-
+#if defined(CONFIG_MQTT_LIB_WEBSOCKET)
+	client->transport.type = MQTT_TRANSPORT_SECURE_WEBSOCKET;
+#else
 	client->transport.type = MQTT_TRANSPORT_SECURE;
+#endif
 
-	rc = tls_init();
-	if (rc != 0)
-	{
-		LOG_ERR("TLS init error");
-		return rc;
-	}
+	struct mqtt_sec_config *tls_config = &client->transport.tls.config;
 
-	tls_config = &client->transport.tls.config;
 	tls_config->peer_verify = TLS_PEER_VERIFY_REQUIRED;
 	tls_config->cipher_list = NULL;
 	tls_config->sec_tag_list = m_sec_tags;
 	tls_config->sec_tag_count = ARRAY_SIZE(m_sec_tags);
-#if defined(CONFIG_MBEDTLS_SSL_SERVER_NAME_INDICATION)
+#if defined(CONFIG_MBEDTLS_X509_CRT_PARSE_C) || defined(CONFIG_NET_SOCKETS_OFFLOAD)
 	tls_config->hostname = TLS_SNI_HOSTNAME;
 #else
 	tls_config->hostname = NULL;
-#endif /* CONFIG_MBEDTLS_SSL_SERVER_NAME_INDICATION */
-#endif /* CONFIG_MQTT_LIB_TLS */
+#endif
+
+#else
+#if defined(CONFIG_MQTT_LIB_WEBSOCKET)
+	client->transport.type = MQTT_TRANSPORT_NON_SECURE_WEBSOCKET;
+#else
+	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
+#endif
+#endif
+
+#if defined(CONFIG_MQTT_LIB_WEBSOCKET)
+	client->transport.websocket.config.host = SERVER_ADDR;
+	client->transport.websocket.config.url = "/mqtt";
+	client->transport.websocket.config.tmp_buf = temp_ws_rx_buf;
+	client->transport.websocket.config.tmp_buf_len =
+		sizeof(temp_ws_rx_buf);
+	client->transport.websocket.timeout = 5 * MSEC_PER_SEC;
+#endif
+
+#if defined(CONFIG_SOCKS)
+	mqtt_client_set_proxy(client, &socks5_proxy,
+						  socks5_proxy.sa_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
+#endif
 
 	return rc;
 }
