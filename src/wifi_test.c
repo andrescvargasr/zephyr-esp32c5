@@ -124,8 +124,6 @@ static void prepare_fds(struct mqtt_client *client)
 	nfds = 1;
 }
 
-
-
 /** The system work queue is used to handle periodic MQTT publishing.
  *  Work queuing begins when the MQTT connection is established.
  *  Use CONFIG_NET_SAMPLE_MQTT_PUBLISH_INTERVAL to set the publish frequency.
@@ -141,6 +139,8 @@ static void publish_work_handler(struct k_work *work)
 		rc = app_mqtt_publish_status(&client_ctx);
 		rc = app_mqtt_publish_mode(&client_ctx);
 		rc = app_mqtt_publish_targets(&client_ctx);
+		rc = app_mqtt_publish_descriptor(&client_ctx);
+		// rc = app_mqtt_publish_parameters(&client_ctx);
 		if (rc != 0)
 		{
 			LOG_INF("MQTT Publish failed [%d]", rc);
