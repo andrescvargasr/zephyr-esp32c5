@@ -27,6 +27,7 @@ static uint8_t tx_buffer[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 
 /* MQTT payload buffer */
 static uint8_t payload_buf[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
+static uint8_t payload_dev_descriptor_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
 
 /* MQTT broker details */
 static struct sockaddr_storage broker;
@@ -57,6 +58,30 @@ struct info_targets
 	char *targets;
 };
 
+/* ejemplo de inicialización con los valores del JSON */
+static device_descriptor_t device = {
+	.Length = 38,
+	.DescriptorVersion = 1024,
+	.DeviceClass = 0,
+	.DeviceSubClass = 1,
+	.DeviceID = 1,
+	.DeviceProtocol = 2,
+	.MaxPacketSize = 13,
+	.Vendor = 12345,
+	.Product = 13,
+	.BCDDevice = 1024,
+	.SerialNumber = 123,
+	.IDs = 16,
+	.HardwareVersion = 4096,
+	.FirmwareVersion = 1024,
+	.ProtocolsSupported = 13,
+	.WIP = 0xC0A80168, /* opcional: htonl(…) si se transmite */
+	.CANID = 0,
+	.MAC = 0x001B44113AB7ULL,
+	.Port = 3000,
+	.ByteSpeed = 115200,
+};
+
 /* JSON payload format */
 static const struct json_obj_descr sensor_sample_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct sensor_sample, unit, JSON_TOK_STRING),
@@ -73,6 +98,30 @@ static const struct json_obj_descr info_mode_descr[] = {
 
 static const struct json_obj_descr info_targets_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct info_targets, targets, JSON_TOK_STRING),
+};
+
+/* JSON descriptor for device_descriptor_t */
+static const struct json_obj_descr device_descriptor_descr[] = {
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, Length, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, DescriptorVersion, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, DeviceClass, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, DeviceSubClass, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, DeviceID, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, DeviceProtocol, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, MaxPacketSize, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, Vendor, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, Product, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, BCDDevice, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, SerialNumber, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, IDs, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, HardwareVersion, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, FirmwareVersion, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, ProtocolsSupported, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, WIP, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, CANID, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, MAC, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, Port, JSON_TOK_NUMBER),
+	JSON_OBJ_DESCR_PRIM(device_descriptor_t, ByteSpeed, JSON_TOK_NUMBER),
 };
 
 /* MQTT connectivity status flag */
@@ -192,10 +241,10 @@ static int get_mqtt_payload_targets(struct mqtt_binstr *payload)
 {
 	int rc;
 	struct info_targets targets =
-	{
-		.targets = "[" SERIAL_NUMBER "," SERIAL_NUMBER "]"};
+		{
+			.targets = "[" SERIAL_NUMBER "," SERIAL_NUMBER "]"};
 
-		rc = 0;
+	rc = 0;
 	if (rc != 0)
 	{
 		LOG_ERR("Failed to get sensor sample [%d]", rc);
@@ -220,26 +269,46 @@ static int get_mqtt_payload_targets(struct mqtt_binstr *payload)
 static int get_mqtt_payload_descriptor(struct mqtt_binstr *payload)
 {
 	int rc;
-	struct info_targets targets =
-	{
-		.targets = "[" SERIAL_NUMBER "," SERIAL_NUMBER "]"};
+	/* ejemplo de inicialización con los valores del JSON */
+	static device_descriptor_t device = {
+		.Length = 38,
+		.DescriptorVersion = 1024,
+		.DeviceClass = 0,
+		.DeviceSubClass = 1,
+		.DeviceID = 1,
+		.DeviceProtocol = 2,
+		.MaxPacketSize = 13,
+		.Vendor = 12345,
+		.Product = 13,
+		.BCDDevice = 1024,
+		.SerialNumber = 123,
+		.IDs = 16,
+		.HardwareVersion = 4096,
+		.FirmwareVersion = 1024,
+		.ProtocolsSupported = 13,
+		.WIP = 0xC0A80168, /* opcional: htonl(…) si se transmite */
+		.CANID = 0,
+		.MAC = 0x001B44113AB7ULL,
+		.Port = 3000,
+		.ByteSpeed = 115200,
+	};
 
-		rc = 0;
+	rc = 0;
 	if (rc != 0)
 	{
 		LOG_ERR("Failed to get sensor sample [%d]", rc);
 		return rc;
 	}
 
-	rc = json_obj_encode_buf(info_targets_descr, ARRAY_SIZE(info_targets_descr),
-							 &targets, payload_buf, CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
+	rc = json_obj_encode_buf(device_descriptor_descr, ARRAY_SIZE(device_descriptor_descr),
+							 &device, payload_dev_descriptor_buf, CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE);
 	if (rc != 0)
 	{
 		LOG_ERR("Failed to encode JSON object [%d]", rc);
 		return rc;
 	}
 
-	payload->data = payload_buf;
+	payload->data = payload_dev_descriptor_buf;
 	payload->len = strlen(payload->data);
 
 	return rc;
@@ -418,6 +487,43 @@ int app_mqtt_publish_targets(struct mqtt_client *client)
 	return rc;
 }
 
+int app_mqtt_publish_descriptor(struct mqtt_client *client)
+{
+	int rc;
+	struct mqtt_publish_param param;
+	struct mqtt_binstr payload;
+	static uint16_t msg_id = 1;
+	struct mqtt_topic topic = {
+		.topic = {
+			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/device_descriptor",
+			.size = strlen(topic.topic.utf8)},
+		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
+
+	rc = get_mqtt_payload_descriptor(&payload);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get MQTT payload [%d]", rc);
+	}
+
+	param.message.topic = topic;
+	param.message.payload = payload;
+	param.message_id = msg_id++;
+	param.dup_flag = 0;
+	param.retain_flag = 0;
+
+	rc = mqtt_publish(client, &param);
+	if (rc != 0)
+	{
+		LOG_ERR("MQTT Publish failed [%d]", rc);
+	}
+
+	LOG_INF("Published to topic '%s', QoS %d",
+			param.message.topic.topic.utf8,
+			param.message.topic.qos);
+
+	return rc;
+}
+
 /** Initialise the MQTT client ID as the board name with random hex postfix */
 static void init_mqtt_client_id(void)
 {
@@ -433,6 +539,9 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 {
 	int rc;
 	uint8_t payload[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
+	uint8_t topic_buf[256]; /* Buffer for null-terminated topic string */
+	char device_id[64];		/* Buffer to store extracted device ID */
+	char *token, *rest;
 
 	rc = mqtt_read_publish_payload(client, payload,
 								   CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE);
@@ -444,13 +553,36 @@ static void on_mqtt_publish(struct mqtt_client *const client, const struct mqtt_
 	/* Place null terminator at end of payload buffer */
 	payload[rc] = '\0';
 
+	/* Extract topic with proper null termination */
+	uint32_t topic_size = evt->param.publish.message.topic.topic.size;
+	if (topic_size >= sizeof(topic_buf))
+	{
+		topic_size = sizeof(topic_buf) - 1;
+	}
+	memcpy(topic_buf, evt->param.publish.message.topic.topic.utf8, topic_size);
+	topic_buf[topic_size] = '\0';
+
 	LOG_INF("MQTT payload received!");
-	LOG_INF("topic: '%s', payload: %s",
-			evt->param.publish.message.topic.topic.utf8, payload);
+	LOG_INF("topic: '%s', payload: %s", (char *)topic_buf, payload);
+
+	/* Extract device ID from topic (format: "technaid_sl/techstim/cuX/*") */
+	memset(device_id, 0, sizeof(device_id));
+	rest = (char *)topic_buf;
+
+	/* Get first token (technaid_sl) */
+	token = strtok_r(rest, "/", &rest);
+	/* Get second token (techstim) */
+	token = strtok_r(NULL, "/", &rest);
+	/* Get third token (device ID - cu1, cu2, cu3, cu4, etc.) */
+	token = strtok_r(NULL, "/", &rest);
+	if (token != NULL)
+	{
+		strncpy(device_id, token, sizeof(device_id) - 1);
+		LOG_INF("Extracted device ID: %s", device_id);
+	}
 
 	/* If the topic is a command, call the command handler  */
-	if (strcmp(evt->param.publish.message.topic.topic.utf8,
-			   CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD) == 0)
+	if (strcmp((char *)topic_buf, CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD) == 0)
 	{
 		LOG_INF("Update device from MQTT command");
 		// device_command_handler(payload);
@@ -606,11 +738,26 @@ static int poll_mqtt_socket(struct mqtt_client *client, int timeout)
 int app_mqtt_subscribe(struct mqtt_client *client)
 {
 	int rc;
-	struct mqtt_topic sub_topics[] = {
-		{.topic = {
-			 .utf8 = CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD,
-			 .size = strlen(sub_topics->topic.utf8)},
-		 .qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)}};
+	const char *cmd_topic[4] = {
+		CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/+/status",
+		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu2/info/status",
+		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu3/info/status",
+		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu4/info/status",
+	};
+
+	struct mqtt_topic sub_topics[1];
+	for (int i = 0; i < 1; i++)
+	{
+		sub_topics[i].topic.utf8 = cmd_topic[i];
+		sub_topics[i].topic.size = strlen(sub_topics[i].topic.utf8);
+		sub_topics[i].qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2);
+		LOG_INF("Topic %d: %s", i + 1, sub_topics[i].topic.utf8);
+	}
+	// struct mqtt_topic sub_topics[] = {
+	// 	{.topic = {
+	// 		 .utf8 = CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu3/info/status",
+	// 		 .size = strlen(sub_topics->topic.utf8)},
+	// 		 .qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)}};
 	const struct mqtt_subscription_list sub_list = {
 		.list = sub_topics,
 		.list_count = ARRAY_SIZE(sub_topics),

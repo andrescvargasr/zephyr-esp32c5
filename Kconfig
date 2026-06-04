@@ -75,5 +75,9 @@ config NET_SAMPLE_MQTT_PAYLOAD_SIZE
 	int "Size of MQTT payload in bytes"
 	default 128
 
+config TECHSTIM_DEV_DESC_PAYLOAD_SIZE
+	int "Size of MQTT payload in bytes"
+	default 512
+
 
 source "Kconfig.zephyr"

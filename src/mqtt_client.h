@@ -55,4 +55,9 @@ int app_mqtt_publish_mode(struct mqtt_client *client);
  */
 int app_mqtt_publish_targets(struct mqtt_client *client);
 
+/**
+ * @brief  Publish MQTT payload with device descriptor topic
+ */
+int app_mqtt_publish_descriptor(struct mqtt_client *client);
+
 #endif /* __MQTT_CLIENT_H__ */

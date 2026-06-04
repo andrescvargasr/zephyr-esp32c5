@@ -120,6 +120,31 @@
 \"ByteSpeed\": 115200,\n \
 }"
 
+/* descriptor genérico de un dispositivo Techstim */
+typedef struct
+{
+    uint8_t Length;             /* 38 bytes totales */
+    uint16_t DescriptorVersion; /* 1024  (v0.4.0) */
+    uint8_t DeviceClass;        /* 0 → Techstim */
+    uint8_t DeviceSubClass;     /* 1 → Techstim v2 */
+    uint16_t DeviceID;          /* 1 → SA */
+    uint8_t DeviceProtocol;     /* 2 → Wi‑Fi */
+    uint8_t MaxPacketSize;      /* 13 */
+    uint16_t Vendor;            /* 12345  Technaid SL */
+    uint8_t Product;            /* 13  Techstim Wi‑Fi register ID */
+    uint16_t BCDDevice;         /* 1024  release */
+    uint32_t SerialNumber;      /* 123 */
+    uint8_t IDs;                /* 16 */
+    uint16_t HardwareVersion;   /* 4096  (v0.4.0) */
+    uint16_t FirmwareVersion;   /* 1024  (v1.0.0) */
+    uint8_t ProtocolsSupported; /* 13 → USB,BT,Wi‑Fi */
+    uint32_t WIP;               /* IP en formato host (0xC0A80168=192.168.1.104) */
+    uint32_t CANID;             /* 0 → ninguno */
+    uint64_t MAC;               /* 0x001B44113AB7 = 00:1B:44:11:3A:B7 */
+    uint16_t Port;              /* 3000 */
+    uint32_t ByteSpeed;         /* 115200 */
+} device_descriptor_t;
+
 // Info status values
 #define INFO_STATUS_CONNECTED "connected"
 #define INFO_STATUS_DISCONNECTED "disconnected"
