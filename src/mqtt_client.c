@@ -739,36 +739,35 @@ int app_mqtt_subscribe(struct mqtt_client *client)
 {
 	int rc;
 	const char *cmd_topic[4] = {
-		CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/+/status",
-		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu2/info/status",
-		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu3/info/status",
-		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu4/info/status",
+		// CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/+/status",
+		CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu1/info/status",
+		CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu2/info/status",
+		CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu3/info/status",
+		CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu4/info/status",
 	};
 
-	struct mqtt_topic sub_topics[1];
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < 2; i++)
 	{
-		sub_topics[i].topic.utf8 = cmd_topic[i];
-		sub_topics[i].topic.size = strlen(sub_topics[i].topic.utf8);
-		sub_topics[i].qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2);
-		LOG_INF("Topic %d: %s", i + 1, sub_topics[i].topic.utf8);
-	}
-	// struct mqtt_topic sub_topics[] = {
-	// 	{.topic = {
-	// 		 .utf8 = CONFIG_NET_SAMPLE_MQTT_SUB_TOPIC_CMD "/cu3/info/status",
-	// 		 .size = strlen(sub_topics->topic.utf8)},
-	// 		 .qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)}};
-	const struct mqtt_subscription_list sub_list = {
-		.list = sub_topics,
-		.list_count = ARRAY_SIZE(sub_topics),
-		.message_id = 5841u};
+		struct mqtt_topic sub_topics[2] = {0}; // 3 topics is the max supported by Zephyr MQTT library, so we subscribe in batches of 2
+		for (int j = 0; j < 2; j++)
+		{
+			sub_topics[j].topic.utf8 = cmd_topic[(i * 2) + j];
+			sub_topics[j].topic.size = strlen(sub_topics[j].topic.utf8);
+			sub_topics[j].qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2);
+			LOG_INF("Topic %d: %s", (i * 2) + j + 1, sub_topics[j].topic.utf8);
+		}
+		const struct mqtt_subscription_list sub_list = {
+			.list = sub_topics,
+			.list_count = ARRAY_SIZE(sub_topics),
+			.message_id = 5841u};
 
-	LOG_INF("Subscribing to %d topic(s)", sub_list.list_count);
+		LOG_INF("Subscribing to %d topic(s)", sub_list.list_count);
 
-	rc = mqtt_subscribe(client, &sub_list);
-	if (rc != 0)
-	{
-		LOG_ERR("MQTT Subscribe failed [%d]", rc);
+		rc = mqtt_subscribe(client, &sub_list);
+		if (rc != 0)
+		{
+			LOG_ERR("MQTT Subscribe failed [%d]", rc);
+		}
 	}
 
 	return rc;
