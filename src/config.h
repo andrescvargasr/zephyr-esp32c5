@@ -55,11 +55,11 @@
 
 #define APP_MQTT_BUFFER_SIZE 128
 
-#define APP_MQTT_KEEPALIVE 5
+#define APP_MQTT_KEEPALIVE 4
 
 // MQTT definitions
 #define PRODUCT_ID "SA"     // User defined
-#define SERIAL_NUMBER "pu3" // It will be extracted from EFUSE_BLK3 (USER_DATA)
+#define SERIAL_NUMBER "pu1" // It will be extracted from EFUSE_BLK3 (USER_DATA)
 
 #define MQTT_COMPANY "technaid_sl"
 #define MQTT_PRODUCT "techstim"
@@ -144,6 +144,118 @@ typedef struct
     uint16_t Port;              /* 3000 */
     uint32_t ByteSpeed;         /* 115200 */
 } device_descriptor_t;
+
+typedef struct
+{
+    int16_t pos_amp[4];
+    size_t pos_amp_len;
+} pos_amp_t;
+
+typedef struct
+{
+    int16_t neg_amp[4];
+    size_t neg_amp_len;
+} neg_amp_t;
+
+typedef struct
+{
+    int16_t pos_time[4];
+    size_t pos_time_len;
+} pos_time_t;
+
+typedef struct
+{
+    int16_t neg_time[4];
+    size_t neg_time_len;
+} neg_time_t;
+
+typedef struct
+{
+    int16_t motor_amp[4];
+    size_t motor_amp_len;
+} umbral_motor_t;
+
+typedef struct
+{
+    int16_t comfort_amp[4];
+    size_t comfort_amp_len;
+} umbral_comfort_t;
+
+typedef struct
+{
+    int16_t max_amp[4];
+    size_t max_amp_len;
+} max_current_t;
+
+typedef struct
+{
+    int16_t min_amp[4];
+    size_t min_amp_len;
+} min_current_t;
+
+/**
+ * Parameter index map for product configuration.
+ * These values were previously defined as individual PARAM_* macros.
+ */
+typedef struct
+{
+    // uint16_t pos_amp[4];  // Positive amplitude for channels 1-4 [0-100 mA]
+    // uint16_t neg_amp[4];  // Negative amplitude for channels 1-4 [0-100 mA]
+    pos_amp_t pos_amp; // Positive amplitude for channels 1-4 [0-100 mA]
+    neg_amp_t neg_amp; // Negative amplitude for channels 1-4 [0-100 mA]
+    pos_time_t pos_time; // Positive pulse time for channels 1-4 [0-1000 µs]
+    neg_time_t neg_time; // Negative pulse time for channels 1-4 [0-1000 µs]
+
+    uint8_t order_channels; // Order of channels [0-3]
+    uint8_t repetitions;    // Number of repetitions [single: 0, double: 1, triple: 2]
+    uint8_t inv_pulse;      // Invert pulse [0-1]
+
+    umbral_motor_t umbral_motor;   // Motor threshold for channels 1-4 [0-100 mA]
+    umbral_comfort_t umbral_comfort; // Comfort threshold for channels 1-4 [0-100 mA]
+
+    min_current_t min_current; // Minimum current for channels 1-4 [0-100 mA]
+    max_current_t max_current; // Maximum current for channels 1-4 [0-100 mA]
+
+    uint16_t intra_freq; // Intra-group frequency [0-200 Hz]
+    uint16_t group_freq; // Group frequency [0-200 Hz]
+
+    uint16_t upgrade_ramp;   // Upgrade ramp time [0-1000 ms]
+    uint16_t downgrade_ramp; // Downgrade ramp time [0-1000 ms]
+
+    uint16_t stimulation_mode; // Stimulation mode [Symmetric: 0, Asymmetric: 1]
+    uint16_t delay;            // Delay between positive and negative pulse [100-1000 ms]
+
+    uint16_t device_id;        // Device ID [PRODUCT_ID]
+    uint16_t firmware_version; // Firmware version [4096 for v1.0.0, SOFTWARE_VERSION_SEMVER]
+    uint16_t error;            // Error code [0 for no error, otherwise specific error codes]
+    uint16_t status;           // Status code bitmask ([0/1]: stimulation inactive/active; bit 0: channel 1, bit 1: channel 2, etc.)
+    uint16_t enabled;          // Enabled channels bitmask (bit 0 for channel 1, bit 1 for channel 2, etc.)
+
+    uint16_t log_counter; // Log counter for tracking parameter changes (incremented on each change)
+    uint16_t qualifier;   // Qualifier Card ID index for the product (similar to PRODUCT_ID)
+} parameters_t;
+
+/*******************************************************************************
+ *  FIRMWARE VERSION AND CARD ID                                               *
+ ******************************************************************************/
+#ifdef APPVERSION
+#define SOFTWARE_VERSION APP_VERSION_STRING // String format for SW version
+// #define SOFTWARE_VERSION_SEMVER ((APP_VERSION_NUMBER) >> 4U)                                                      /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#define SOFTWARE_VERSION_SEMVER ((APP_VERSION_MAJOR << 12U) + (APP_VERSION_MINOR << 4U) + (APP_PATCHLEVEL << 0U)) /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#else
+#define SOFTWARE_VERSION "v0.20.1"      // String format for SW version
+#define SOFTWARE_VERSION_SEMVER 0x0141U /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#endif
+
+#define HARDWARE_VERSION_SEMVER 0x0010U   /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#define RELEASE_VERSION_SEMVER 0x0010U    /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#define DESCRIPTOR_VERSION_SEMVER 0x1000U /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+
+#define KIND_ID 83    // 'S' in ASCII DEC (0x53) for Tech'S'tim := Stimulation
+#define DEFAULT_ID 65 // 'A' in ASCII DEC (0x41) for first device A = 0
+// #define PRODUCT_ID (((KIND_ID) << 8) | (DEFAULT_ID))
+
+#define MAX_PARAMS 68 // [A-Z][AA-AZ][BA-BP]
 
 // Info status values
 #define INFO_STATUS_CONNECTED "connected"

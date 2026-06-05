@@ -28,6 +28,7 @@ static uint8_t tx_buffer[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 /* MQTT payload buffer */
 static uint8_t payload_buf[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 static uint8_t payload_dev_descriptor_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
+static uint8_t payload_parameters_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
 
 /* MQTT broker details */
 static struct sockaddr_storage broker;
@@ -82,6 +83,73 @@ static device_descriptor_t device = {
 	.ByteSpeed = 115200,
 };
 
+static const pos_amp_t pos_amp = {
+	.pos_amp = {0, 0, 0, 0},
+	.pos_amp_len = 4,
+};
+
+static const neg_amp_t neg_amp = {
+	.neg_amp = {0, 0, 0, 0},
+	.neg_amp_len = 4,
+};
+
+static const pos_time_t pos_time = {
+	.pos_time = {0, 0, 0, 0},
+	.pos_time_len = 4,
+};
+
+static const neg_time_t neg_time = {
+	.neg_time = {0, 0, 0, 0},
+	.neg_time_len = 4,
+};
+
+static const umbral_motor_t umbral_motor = {
+	.motor_amp = {0, 0, 0, 0},
+	.motor_amp_len = 4,
+};
+
+static const umbral_comfort_t umbral_comfort = {
+	.comfort_amp = {0, 0, 0, 0},
+	.comfort_amp_len = 4,
+};
+
+static const max_current_t max_current = {
+	.max_amp = {0, 0, 0, 0},
+	.max_amp_len = 4,
+};
+
+static const min_current_t min_current = {
+	.min_amp = {0, 0, 0, 0},
+	.min_amp_len = 4,
+};
+
+static const parameters_t PARAMETERS_T = {
+	.pos_amp = pos_amp,
+	.neg_amp = neg_amp,
+	.pos_time = pos_time,
+	.neg_time = neg_time,
+	.order_channels = (1 << 0) | (0 << 2) | (3 << 4) | (2 << 6), // Ejemplo: orden de canales 1-0-3-2
+	.repetitions = (1 << 0) | (2 << 2) | (0 << 4) | (0 << 6),	 // Ejemplo: doble repetición para canal 1, triple para canal 2, simple para canal 3
+	.inv_pulse = (1 << 0) | (0 << 1) | (1 << 2) | (0 << 3),		 // Ejemplo: invertir pulso para canales 1 y 3
+	.umbral_motor = umbral_motor,
+	.umbral_comfort = umbral_comfort,
+	.min_current = min_current,
+	.max_current = max_current,
+	.intra_freq = 10,
+	.group_freq = 50,
+	.upgrade_ramp = 100,
+	.downgrade_ramp = 100,
+	.stimulation_mode = (0 << 0) | (1 << 2) | (0 << 4) | (1 << 6), // Ejemplo: modo asimétrico para canal 1, simétrico para canal 2
+	.delay = 100,
+	.device_id = 5341,
+	.firmware_version = SOFTWARE_VERSION_SEMVER, // Ejemplo: versión 2.0.0
+	.error = 0,
+	.status = 0,
+	.enabled = 0,
+	.log_counter = (MAX_PARAMS - 1),
+	.qualifier = 5341,
+};
+
 /* JSON payload format */
 static const struct json_obj_descr sensor_sample_descr[] = {
 	JSON_OBJ_DESCR_PRIM(struct sensor_sample, unit, JSON_TOK_STRING),
@@ -126,17 +194,25 @@ static const struct json_obj_descr device_descriptor_descr[] = {
 
 /* JSON descriptor for parameters_t */
 static const struct json_obj_descr parameters_descr[] = {
-	JSON_OBJ_DESCR_PRIM(parameters_t, pos_amp, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, neg_amp, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, pos_time, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, neg_time, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(pos_amp_t, pos_amp, 4, pos_amp_len, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(neg_amp_t, neg_amp, 4, neg_amp_len, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(pos_time_t, pos_time, 4, pos_time_len, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(neg_time_t, neg_time, 4, neg_time_len, JSON_TOK_UINT),
+
 	JSON_OBJ_DESCR_PRIM(parameters_t, order_channels, JSON_TOK_UINT),
 	JSON_OBJ_DESCR_PRIM(parameters_t, repetitions, JSON_TOK_UINT),
 	JSON_OBJ_DESCR_PRIM(parameters_t, inv_pulse, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, umbral_motor, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, umbral_comfort, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, min_current, JSON_TOK_UINT),
-	JSON_OBJ_DESCR_PRIM(parameters_t, max_current, JSON_TOK_UINT),
+
+	JSON_OBJ_DESCR_ARRAY(umbral_motor_t, motor_amp, 4, motor_amp_len, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(umbral_comfort_t, comfort_amp, 4, comfort_amp_len, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(min_current_t, min_amp, 4, min_amp_len, JSON_TOK_UINT),
+	JSON_OBJ_DESCR_ARRAY(max_current_t, max_amp, 4, max_amp_len, JSON_TOK_UINT),
+
+	// JSON_OBJ_DESCR_PRIM(parameters_t, umbral_motor, JSON_TOK_UINT),
+	// JSON_OBJ_DESCR_PRIM(parameters_t, umbral_comfort, JSON_TOK_UINT),
+	// JSON_OBJ_DESCR_PRIM(parameters_t, min_current, JSON_TOK_UINT),
+	// JSON_OBJ_DESCR_PRIM(parameters_t, max_current, JSON_TOK_UINT),
+
 	JSON_OBJ_DESCR_PRIM(parameters_t, intra_freq, JSON_TOK_UINT),
 	JSON_OBJ_DESCR_PRIM(parameters_t, group_freq, JSON_TOK_UINT),
 	JSON_OBJ_DESCR_PRIM(parameters_t, upgrade_ramp, JSON_TOK_UINT),
@@ -342,6 +418,34 @@ static int get_mqtt_payload_descriptor(struct mqtt_binstr *payload)
 	return rc;
 }
 
+/** Retrieves a targets and encodes it in JSON format */
+static int get_mqtt_payload_parameters(struct mqtt_binstr *payload)
+{
+	int rc;
+
+	rc = 0;
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get sensor sample [%d]", rc);
+		return rc;
+	}
+
+	rc = json_obj_encode_buf(parameters_descr, ARRAY_SIZE(parameters_descr),
+							 &PARAMETERS_T, payload_parameters_buf, CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to encode JSON object [%d]", rc);
+		return rc;
+	}
+
+	LOG_DBG("Encoded parameters JSON length: %d", strlen(payload_parameters_buf));
+
+	payload->data = payload_parameters_buf;
+	payload->len = strlen(payload->data);
+
+	return rc;
+}
+
 static void clear_fds(void)
 {
 	nfds = 0;
@@ -528,6 +632,43 @@ int app_mqtt_publish_descriptor(struct mqtt_client *client)
 		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
 
 	rc = get_mqtt_payload_descriptor(&payload);
+	if (rc != 0)
+	{
+		LOG_ERR("Failed to get MQTT payload [%d]", rc);
+	}
+
+	param.message.topic = topic;
+	param.message.payload = payload;
+	param.message_id = msg_id++;
+	param.dup_flag = 0;
+	param.retain_flag = 0;
+
+	rc = mqtt_publish(client, &param);
+	if (rc != 0)
+	{
+		LOG_ERR("MQTT Publish failed [%d]", rc);
+	}
+
+	LOG_INF("Published to topic '%s', QoS %d",
+			param.message.topic.topic.utf8,
+			param.message.topic.qos);
+
+	return rc;
+}
+
+int app_mqtt_publish_parameters(struct mqtt_client *client)
+{
+	int rc;
+	struct mqtt_publish_param param;
+	struct mqtt_binstr payload;
+	static uint16_t msg_id = 1;
+	struct mqtt_topic topic = {
+		.topic = {
+			.utf8 = CONFIG_NET_SAMPLE_MQTT_PUB_TOPIC "/" SERIAL_NUMBER "/parameters",
+			.size = strlen(topic.topic.utf8)},
+		.qos = IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_0_AT_MOST_ONCE) ? 0 : (IS_ENABLED(CONFIG_NET_SAMPLE_MQTT_QOS_1_AT_LEAST_ONCE) ? 1 : 2)};
+
+	rc = get_mqtt_payload_parameters(&payload);
 	if (rc != 0)
 	{
 		LOG_ERR("Failed to get MQTT payload [%d]", rc);
@@ -934,11 +1075,12 @@ int app_mqtt_init(struct mqtt_client *client, char *server_addr)
 	client->broker = &broker;
 	client->evt_cb = mqtt_event_handler;
 	client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
-	client->client_id.size = strlen(MQTT_CLIENTID);
+	// client->client_id.size = strlen(MQTT_CLIENTID);
+	client->client_id.size = 2; // 2 bytes is enough for the client ID since it's generated as "cuX" where X is a single digit
 	client->password = NULL;
 	client->user_name = NULL;
 
-	LOG_INF("MQTT client initialized with client ID: %s", MQTT_CLIENTID);
+	LOG_INF("MQTT client initialized with client ID: %x", MQTT_CLIENTID);
 	LOG_INF("MQTT client will topic: %s", will_param.topic.topic.utf8);
 	LOG_INF("MQTT client will message: %s", will_param.message.utf8);
 

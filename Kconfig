@@ -46,7 +46,7 @@ config NET_SAMPLE_MQTT_SUB_TOPIC_CMD
 
 config NET_SAMPLE_MQTT_PUBLISH_INTERVAL
 	int "Interval between MQTT publishes (in seconds)"
-	default 5
+	default 10
 	help
 	  This config determines the frequency at which MQTT publishes occur.
 

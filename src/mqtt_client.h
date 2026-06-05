@@ -60,4 +60,14 @@ int app_mqtt_publish_targets(struct mqtt_client *client);
  */
 int app_mqtt_publish_descriptor(struct mqtt_client *client);
 
+/**
+ * @brief  Publish MQTT payload with parameters topic
+ */
+int app_mqtt_publish_parameters(struct mqtt_client *client);
+
+/**
+ * @brief  Process incoming MQTT data and handle keepalive
+ */
+int app_mqtt_process(struct mqtt_client *client);
+
 #endif /* __MQTT_CLIENT_H__ */

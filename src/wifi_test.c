@@ -132,15 +132,24 @@ static void prepare_fds(struct mqtt_client *client)
 static void publish_work_handler(struct k_work *work)
 {
 	int rc;
+	static bool first_msg = true;
 
 	if (mqtt_connected)
 	{
-		// rc = app_mqtt_publish(&client_ctx);
-		rc = app_mqtt_publish_status(&client_ctx);
-		rc = app_mqtt_publish_mode(&client_ctx);
-		rc = app_mqtt_publish_targets(&client_ctx);
-		rc = app_mqtt_publish_descriptor(&client_ctx);
-		// rc = app_mqtt_publish_parameters(&client_ctx);
+		if (first_msg)
+		{
+			LOG_INF("Publishing first MQTT message...");
+			first_msg = false;
+			// rc = app_mqtt_publish(&client_ctx);
+			rc = app_mqtt_publish_status(&client_ctx);
+			rc += app_mqtt_publish_mode(&client_ctx);
+			rc += app_mqtt_publish_targets(&client_ctx);
+			rc += app_mqtt_publish_descriptor(&client_ctx);
+		}
+		else
+		{
+			rc = app_mqtt_publish_parameters(&client_ctx);
+		}
 		if (rc != 0)
 		{
 			LOG_INF("MQTT Publish failed [%d]", rc);
