@@ -37,6 +37,9 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 
 #include "mqtt_client.h"
 
+// Version control
+#include <zephyr/app_version.h>
+
 #ifdef CONFIG_BOARD_XIAO_ESP32C5
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
@@ -166,6 +169,8 @@ static void publish_work_handler(struct k_work *work)
 int main(void)
 {
 	int ret;
+
+	LOG_INF("TechStim App version: %d.%d.%d", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_PATCHLEVEL);
 
 #ifdef CONFIG_BOARD_XIAO_ESP32C5
 	LOG_INF("Starting Wi-Fi test with LED indication");
