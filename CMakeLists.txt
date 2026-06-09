@@ -21,6 +21,12 @@ set(mcuboot_CONFIG_BOOT_SIGNATURE_KEY_FILE "\"${mcuboot_key_file}\"")
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wifi)
 
+
+# Verify that this sample is built through sysbuild to ensure MCUboot is
+# automatically included and that sample specific MCUboot configurations are
+# used when building MCUboot.
+test_sysbuild()
+
 FILE(GLOB app_sources src/*.c)
 target_sources(app PRIVATE ${app_sources})
 

@@ -145,6 +145,8 @@ typedef struct
     uint32_t ByteSpeed;         /* 115200 */
 } device_descriptor_t;
 
+
+/* Estructuras para parámetros de configuración */
 typedef struct
 {
     int16_t pos_amp[4];
@@ -199,8 +201,6 @@ typedef struct
  */
 typedef struct
 {
-    // uint16_t pos_amp[4];  // Positive amplitude for channels 1-4 [0-100 mA]
-    // uint16_t neg_amp[4];  // Negative amplitude for channels 1-4 [0-100 mA]
     pos_amp_t pos_amp; // Positive amplitude for channels 1-4 [0-100 mA]
     neg_amp_t neg_amp; // Negative amplitude for channels 1-4 [0-100 mA]
     pos_time_t pos_time; // Positive pulse time for channels 1-4 [0-1000 µs]
