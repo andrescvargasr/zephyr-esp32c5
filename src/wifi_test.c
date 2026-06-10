@@ -40,6 +40,9 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 // Version control
 #include <zephyr/app_version.h>
 
+// Register new shell commands
+#include <zephyr/shell/shell.h>
+
 #ifdef CONFIG_BOARD_XIAO_ESP32C5
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
@@ -76,6 +79,19 @@ static bool connected;
 /* Whether to include full topic in the publish message, or alias only (MQTT 5). */
 static bool include_topic;
 static bool aliases_enabled;
+
+// Shell command function
+static int cmd_version(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	shell_print(sh, "TechStim App version %d.%d.%d", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_PATCHLEVEL);
+
+	return 0;
+}
+
+SHELL_CMD_ARG_REGISTER(s, NULL, "Show kernel version", cmd_version, 1, 0);
 
 static int wifi_autoconnect_from_nvs(void)
 {
