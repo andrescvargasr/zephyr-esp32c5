@@ -28,7 +28,7 @@ static uint8_t tx_buffer[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 /* MQTT payload buffer */
 static uint8_t payload_buf[CONFIG_NET_SAMPLE_MQTT_PAYLOAD_SIZE];
 static uint8_t payload_dev_descriptor_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
-static uint8_t payload_parameters_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
+uint8_t payload_parameters_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
 
 /* MQTT broker details */
 static struct sockaddr_storage broker;

@@ -49,6 +49,8 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
 
+extern uint8_t payload_parameters_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
+
 /*
  * A build error on this line means your board is unsupported.
  * See the sample documentation for information on how to fix this.
@@ -86,12 +88,14 @@ static int cmd_version(const struct shell *sh, size_t argc, char **argv)
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 
+	shell_print(sh, "Showing parameters values:");
+	shell_print(sh, "parameters: %s", payload_parameters_buf);
 	shell_print(sh, "TechStim App version %d.%d.%d", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_PATCHLEVEL);
 
 	return 0;
 }
 
-SHELL_CMD_ARG_REGISTER(s, NULL, "Show kernel version", cmd_version, 1, 0);
+SHELL_CMD_ARG_REGISTER(s, NULL, "Show parameters", cmd_version, 1, 0);
 
 static int wifi_autoconnect_from_nvs(void)
 {
