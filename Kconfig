@@ -5,6 +5,18 @@
 
 mainmenu "Networking mqtt_publisher sample application"
 
+config WIFI_SSID
+	string "Wi-Fi SSID"
+	default "TechnaidSL_5G"
+
+config WIFI_PASSWORD
+	string "Wi-Fi Password"
+	default "sjHHfKcH*hOT"
+
+config WIFI_SECURITY_TYPE
+	string "Wi-Fi Security Type"
+	default "WIFI_SECURITY_TYPE_PSK"
+
 config NET_SAMPLE_APP_MAX_ITERATIONS
 	int "Number of times to Publish sample MQTT messages"
 	default 500

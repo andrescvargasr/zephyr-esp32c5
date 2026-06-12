@@ -43,6 +43,14 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 // Register new shell commands
 #include <zephyr/shell/shell.h>
 
+// Adding default wifi credentials for autoconnect
+#include <zephyr/net/wifi_credentials.h>
+
+const char *ssid = CONFIG_WIFI_SSID;
+const char *password = CONFIG_WIFI_PASSWORD;
+enum wifi_security_type type = WIFI_SECURITY_TYPE_PSK;
+
+
 #ifdef CONFIG_BOARD_XIAO_ESP32C5
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 1000
@@ -217,6 +225,27 @@ int main(void)
 #else
 	LOG_INF("Starting Wi-Fi test without LED indication");
 #endif
+
+	// Test Wifi autoconnect using credentials function to load credentials from Kconfig file
+	// and connect to Wi-Fi network. This is optional, as credentials can also be loaded from NVS.
+	ret = wifi_credentials_set_personal(
+		ssid, strlen(ssid),
+		type,
+		NULL, 0, // BSSID (NULL if not fixed)
+		password, strlen(password),
+		0,       // flags
+		0,       // channel (0 for any)
+		0        // timeout (0 for default)
+	);
+
+	if (ret == 0) {
+		// Success
+		LOG_INF("Wi-Fi credentials set successfully for Kconfig: %s", ssid);
+	}
+	else {
+		// Failure
+		LOG_ERR("Failed to set Wi-Fi credentials for Kconfig: %s, error code: %d", ssid, ret);
+	}
 
 	ret = wifi_autoconnect_from_nvs();
 	if (ret < 0)
