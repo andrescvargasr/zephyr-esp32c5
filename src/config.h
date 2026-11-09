@@ -63,7 +63,7 @@
 #define APP_MQTT_KEEPALIVE 4
 
 // MQTT definitions
-#define PRODUCT_ID "SA"     // User defined
+#define PRODUCT_ID "S0"     // User defined: Where Sx; x= 1,2,4, etc. is for PU, while Sy; y=A, B, C, etc. for CU
 #define SERIAL_NUMBER "pu1" // It will be extracted from EFUSE_BLK3 (USER_DATA)
 
 #define MQTT_COMPANY "technaid_sl"
@@ -248,16 +248,16 @@ typedef struct
 // #define SOFTWARE_VERSION_SEMVER ((APP_VERSION_NUMBER) >> 4U)                                                      /* MAJOR.MINOR.PATCH [0xM.mm.P] */
 #define SOFTWARE_VERSION_SEMVER ((APP_VERSION_MAJOR << 12U) + (APP_VERSION_MINOR << 4U) + (APP_PATCHLEVEL << 0U)) /* MAJOR.MINOR.PATCH [0xM.mm.P] */
 #else
-#define SOFTWARE_VERSION "v0.20.1"      // String format for SW version
-#define SOFTWARE_VERSION_SEMVER 0x0141U /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#define SOFTWARE_VERSION "v1.0.0"      // String format for SW version
+#define SOFTWARE_VERSION_SEMVER 0x1000U /* MAJOR.MINOR.PATCH [0xM.mm.P] */
 #endif
 
-#define HARDWARE_VERSION_SEMVER 0x0010U   /* MAJOR.MINOR.PATCH [0xM.mm.P] */
-#define RELEASE_VERSION_SEMVER 0x0010U    /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#define HARDWARE_VERSION_SEMVER 0x1000U   /* MAJOR.MINOR.PATCH [0xM.mm.P] */
+#define RELEASE_VERSION_SEMVER 0x1000U    /* MAJOR.MINOR.PATCH [0xM.mm.P] */
 #define DESCRIPTOR_VERSION_SEMVER 0x1000U /* MAJOR.MINOR.PATCH [0xM.mm.P] */
 
 #define KIND_ID 83    // 'S' in ASCII DEC (0x53) for Tech'S'tim := Stimulation
-#define DEFAULT_ID 65 // 'A' in ASCII DEC (0x41) for first device A = 0
+#define DEFAULT_ID 48 // '0' in ASCII DEC (0x30) for first device
 // #define PRODUCT_ID (((KIND_ID) << 8) | (DEFAULT_ID))
 
 #define MAX_PARAMS 68 // [A-Z][AA-AZ][BA-BP]
@@ -267,8 +267,8 @@ typedef struct
 #define INFO_STATUS_DISCONNECTED "disconnected"
 
 // Info mode values
-#define INFO_MODE_CONTROLLER "controller"
-#define INFO_MODE_PERIPHERAL "peripheral"
+#define INFO_MODE_CONTROLLER "controller"   // Controller for PU units
+#define INFO_MODE_PERIPHERAL "peripheral"   // Peripheral for CU units
 
 #define MQTT_CLIENTID PRODUCT_ID
 
