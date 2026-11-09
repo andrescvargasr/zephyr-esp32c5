@@ -60,7 +60,7 @@ struct info_targets
 };
 
 /* ejemplo de inicialización con los valores del JSON */
-static device_descriptor_t device = {
+device_descriptor_t device = {
 	.Length = 38,
 	.DescriptorVersion = 1024,
 	.DeviceClass = 0,
@@ -74,7 +74,7 @@ static device_descriptor_t device = {
 	.SerialNumber = 123,
 	.IDs = 16,
 	.HardwareVersion = 4096,
-	.FirmwareVersion = 1024,
+	.FirmwareVersion = SOFTWARE_VERSION_SEMVER,
 	.ProtocolsSupported = 13,
 	.WIP = 0xC0A80168, /* opcional: htonl(…) si se transmite */
 	.CANID = 0,
@@ -373,29 +373,6 @@ static int get_mqtt_payload_targets(struct mqtt_binstr *payload)
 static int get_mqtt_payload_descriptor(struct mqtt_binstr *payload)
 {
 	int rc;
-	/* ejemplo de inicialización con los valores del JSON */
-	static device_descriptor_t device = {
-		.Length = 38,
-		.DescriptorVersion = 1024,
-		.DeviceClass = 0,
-		.DeviceSubClass = 1,
-		.DeviceID = 1,
-		.DeviceProtocol = 2,
-		.MaxPacketSize = 13,
-		.Vendor = 12345,
-		.Product = 13,
-		.BCDDevice = 1024,
-		.SerialNumber = 123,
-		.IDs = 16,
-		.HardwareVersion = 4096,
-		.FirmwareVersion = 1024,
-		.ProtocolsSupported = 13,
-		.WIP = 0xC0A80168, /* opcional: htonl(…) si se transmite */
-		.CANID = 0,
-		.MAC = 0x001B44113AB7ULL,
-		.Port = 3000,
-		.ByteSpeed = 115200,
-	};
 
 	rc = 0;
 	if (rc != 0)

@@ -6,8 +6,8 @@
 
 /**
  * TODO:
- * - Update IP when there is a Wi-Fi Connection
- * - Add the MAC address
+ * - [] Update IP when there is a Wi-Fi Connection
+ * - [] Add the MAC address
  */
 
 #ifndef __CONFIG_H__

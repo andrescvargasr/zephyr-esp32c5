@@ -6,9 +6,10 @@
 
 /**
  * TODO:
- * - Add blinking error when device is not connect to the Wi-Fi.
+ * - [] Add blinking error when device is not connect to the Wi-Fi.
+ * - [] Add IDs commands
  * FIXME:
- * - main thread is overflow memory. Check what is happening.
+ * - [] main thread is overflow memory. Check what is happening.
  */
 
 #include <zephyr/kernel.h>
