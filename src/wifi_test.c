@@ -107,6 +107,34 @@ static int cmd_version(const struct shell *sh, size_t argc, char **argv)
 
 SHELL_CMD_ARG_REGISTER(s, NULL, "Show parameters", cmd_version, 1, 0);
 
+#define WIFI_MGMT_EVENTS (NET_EVENT_WIFI_CONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_RESULT)
+
+static struct net_mgmt_event_callback wifi_mgmt_cb;
+
+static void wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
+				    uint64_t mgmt_event, struct net_if *iface)
+{
+	const struct wifi_status *status = (const struct wifi_status *)cb->info;
+
+	ARG_UNUSED(iface);
+
+	switch (mgmt_event) {
+	case NET_EVENT_WIFI_CONNECT_RESULT:
+		if (status->status) {
+			LOG_ERR("Wi-Fi connection failed (%d), reason: %u, status: %u",
+				status->status, status->reason_code, status->status_code);
+		} else {
+			LOG_INF("Wi-Fi connected successfully");
+		}
+		break;
+	case NET_EVENT_WIFI_DISCONNECT_RESULT:
+		LOG_INF("Wi-Fi disconnected (status: %d)", status->status);
+		break;
+	default:
+		break;
+	}
+}
+
 static int wifi_autoconnect_from_nvs(void)
 {
 	struct net_if *iface = net_if_get_wifi_sta();
@@ -232,6 +260,10 @@ int main(void)
 #else
 	LOG_INF("Starting Wi-Fi test without LED indication");
 #endif
+
+	/* Register Wi-Fi management event callback to monitor connection results */
+	net_mgmt_init_event_callback(&wifi_mgmt_cb, wifi_mgmt_event_handler, WIFI_MGMT_EVENTS);
+	net_mgmt_add_event_callback(&wifi_mgmt_cb);
 
 	// Test Wifi autoconnect using credentials function to load credentials from Kconfig file
 	// and connect to Wi-Fi network. This is optional, as credentials can also be loaded from NVS.
