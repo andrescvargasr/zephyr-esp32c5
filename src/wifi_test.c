@@ -114,7 +114,12 @@ static int wifi_autoconnect_from_nvs(void)
 
 	if (iface == NULL)
 	{
-		LOG_ERR("No default network interface");
+		iface = net_if_get_default();
+	}
+
+	if (iface == NULL)
+	{
+		LOG_ERR("No default or Wi-Fi STA network interface");
 		return -ENODEV;
 	}
 
