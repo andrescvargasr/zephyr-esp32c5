@@ -59,6 +59,8 @@ enum wifi_security_type type = WIFI_SECURITY_TYPE_PSK;
 
 extern uint8_t payload_parameters_buf[CONFIG_TECHSTIM_DEV_DESC_PAYLOAD_SIZE];
 
+extern bool mqtt_connected;
+
 /*
  * A build error on this line means your board is unsupported.
  * See the sample documentation for information on how to fix this.
@@ -107,7 +109,7 @@ SHELL_CMD_ARG_REGISTER(s, NULL, "Show parameters", cmd_version, 1, 0);
 
 static int wifi_autoconnect_from_nvs(void)
 {
-	struct net_if *iface = net_if_get_default();
+	struct net_if *iface = net_if_get_wifi_sta();
 	int ret;
 
 	if (iface == NULL)
@@ -255,7 +257,7 @@ int main(void)
 
 	wait_for_network();
 
-	struct net_if *iface = net_if_get_default();
+	struct net_if *iface = net_if_get_wifi_sta();
 	if (!iface)
 	{
 		LOG_INF("No default network interface");
