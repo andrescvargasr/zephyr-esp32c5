@@ -4,6 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * TODO:
+ * - Update IP when there is a Wi-Fi Connection
+ * - Add the MAC address
+ */
+
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 

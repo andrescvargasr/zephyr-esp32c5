@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * TODO:
+ * - Add blinking error when device is not connect to the Wi-Fi.
+ * FIXME:
+ * - main thread is overflow memory. Check what is happening.
+ */
+
 #include <zephyr/kernel.h>
 #include <errno.h>
 
