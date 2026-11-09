@@ -18,6 +18,21 @@ endif()
 set(mcuboot_key_file ${CMAKE_CURRENT_SOURCE_DIR}/key.pem)
 set(mcuboot_CONFIG_BOOT_SIGNATURE_KEY_FILE "\"${mcuboot_key_file}\"")
 
+# Load .env file into environment variables if it exists
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.env")
+  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/.env" ENV_VARS ENCODING UTF-8)
+  foreach(line ${ENV_VARS})
+    # Ignore empty lines and lines starting with '#'
+    if(NOT line MATCHES "^[ \t]*#" AND line MATCHES "^([^=]+)=(.*)$")
+      string(STRIP "${CMAKE_MATCH_1}" key)
+      string(STRIP "${CMAKE_MATCH_2}" value)
+      # Strip surrounding quotes if present
+      string(REGEX REPLACE "^[\"\'](.*)[\"\']$" "\\1" value "${value}")
+      set(ENV{${key}} "${value}")
+    endif()
+  endforeach()
+endif()
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wifi)
 

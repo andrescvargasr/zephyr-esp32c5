@@ -7,11 +7,13 @@ mainmenu "Networking mqtt_publisher sample application"
 
 config WIFI_SSID
 	string "Wi-Fi SSID"
-	default "TechnaidSL_5G"
+	default "$(WIFI_SSID)" if "$(WIFI_SSID)" != ""
+	default "zephyr"
 
 config WIFI_PASSWORD
 	string "Wi-Fi Password"
-	default "sjHHfKcH*hOT"
+	default "$(WIFI_PASSWORD)" if "$(WIFI_PASSWORD)" != ""
+	default "19234567"
 
 config WIFI_SECURITY_TYPE
 	string "Wi-Fi Security Type"
@@ -36,8 +38,8 @@ config NET_SAMPLE_APP_MAX_CONNECTIONS
 # From secure MQTT sample application
 config NET_SAMPLE_MQTT_BROKER_HOSTNAME
 	string "Hostname of MQTT broker"
-	default "192.168.1.150"
-	# default "test.mosquitto.org"
+	default "$(MQTT_BROKER)" if "$(MQTT_BROKER)" != ""
+	default "test.mosquitto.org"
 	help
 	  MQTT broker's hostname or IP address.
 

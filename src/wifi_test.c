@@ -333,7 +333,7 @@ int main(void)
 
 		/* Initialise MQTT publish work item */
 		k_work_init_delayable(&mqtt_publish_work, publish_work_handler);
-
+		
 		/* Thread main loop */
 		while (1)
 		{

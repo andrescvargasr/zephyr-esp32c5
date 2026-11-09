@@ -25,7 +25,6 @@
 #else
 #define ZEPHYR_ADDR "192.168.1.101"
 #define SERVER_ADDR "0.0.0.0"
-// #define SERVER_ADDR		"192.168.1.10"
 #endif
 #endif
 
